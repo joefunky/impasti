@@ -21,8 +21,10 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   // Solo i file dell'app: il foglio Google e altri siti passano senza toccarli.
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  // cache 'no-cache': chiede sempre al sito se c'è una versione nuova, invece di usare
+  // la copia del browser (che su GitHub Pages può restare vecchia per 10 minuti).
   e.respondWith(
-    fetch(req)
+    fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
       .then((res) => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
         return res;
