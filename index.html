@@ -3,20 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Calcolo Impasti</title>
-<meta name="theme-color" content="#a8541f">
+<title>Baking Bread</title>
+<meta name="theme-color" content="#1d5a2c">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
+  /* Palette "deserto del New Mexico": sabbia, verde da tavola periodica, cielo scuro di notte. */
   :root {
-    --bg: #f6f1e9; --surface: #fffdf9; --text: #2b2520; --muted: #7a6e62;
-    --line: #e4dacb; --accent: #a8541f; --accent-ink: #fff; --soft: #f1e6d6; --danger: #b3261e;
+    --bg: #efe6cf; --surface: #fbf7ec; --text: #1c2a20; --muted: #6b6f5a;
+    --line: #dcd1b4; --accent: #2e6b3c; --accent-ink: #fff; --soft: #e3ecd6; --danger: #b3261e;
+    --tile-a: #4f9a5b; --tile-b: #1d5a2c; --tile-line: #a9d39a;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #1b1714; --surface: #252019; --text: #efe7dc; --muted: #a89a8a;
-      --line: #3a3229; --accent: #e08a4f; --accent-ink: #1b1714; --soft: #2f281f; --danger: #f2867e;
+      --bg: #0e1511; --surface: #16211a; --text: #e8efe4; --muted: #98a593;
+      --line: #26362b; --accent: #6fbf73; --accent-ink: #0e1511; --soft: #1d2c22; --danger: #f2867e;
+      --tile-a: #3f8a4b; --tile-b: #17482a; --tile-line: #7fbf74;
     }
   }
   * { box-sizing: border-box; }
@@ -25,7 +28,24 @@
     font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   main { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; }
-  h1 { font-size: 1.5rem; margin: 0 0 16px; letter-spacing: -0.01em; }
+  h1.logo {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 2px 4px;
+    font-size: 1.9rem; line-height: 1; margin: 4px 0 6px; letter-spacing: -0.01em; font-weight: 700;
+  }
+  .logo .word { display: inline-flex; align-items: center; gap: 3px; }
+  .tile {
+    position: relative; display: inline-grid; place-items: center;
+    width: 50px; height: 54px; border-radius: 3px;
+    background: linear-gradient(155deg, var(--tile-a), var(--tile-b));
+    border: 2px solid var(--tile-line); color: #fff;
+    font-size: 1.75rem; font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.18);
+  }
+  .tile small, .tile i { position: absolute; font-size: .55rem; font-style: normal; font-weight: 600; opacity: .9; }
+  .tile small { top: 3px; left: 4px; }
+  .tile i { bottom: 3px; right: 4px; }
+  .tagline { font-size: .9rem; color: var(--muted); margin: 0 0 18px; font-style: italic; }
+  footer { text-align: center; font-size: .85rem; color: var(--muted); margin-top: 22px; }
+  footer strong { color: var(--accent); }
   h2 { font-size: 1rem; margin: 0 0 12px; }
   h3 { font-size: .95rem; margin: 22px 0 2px; }
   .sub { font-size: .8rem; color: var(--muted); margin: 0 0 4px; }
@@ -82,7 +102,11 @@
 </head>
 <body>
 <main>
-  <h1>Calcolo impasti</h1>
+  <h1 class="logo" aria-label="Baking Bread">
+    <span class="word" aria-hidden="true"><span class="tile"><small>56</small>Ba<i>137,33</i></span>king</span>
+    <span class="word" aria-hidden="true"><span class="tile"><small>35</small>Br<i>79,904</i></span>ead</span>
+  </h1>
+  <p class="tagline">Io sono quello che impasta.</p>
 
   <!-- Calcolatore -->
   <section class="card" id="calc">
@@ -276,6 +300,11 @@
       <p class="note" id="sheetMsg"></p>
     </details>
   </section>
+
+  <footer>
+    <p>Hai sbagliato il sale? <strong>Better Call Sale</strong> ⚖️</p>
+    <p>Formula approvata da Heisenbread. Purezza della farina: 99,1%.</p>
+  </footer>
 </main>
 
 <script>
@@ -658,7 +687,7 @@
     if (r.notes.forno) lines.push('Forno: ' + r.notes.forno);
     if (r.notes.procedimento) lines.push('', 'Procedimento:', r.notes.procedimento);
     const { id, ...data } = r;
-    lines.push('', 'Per aggiungerla all\'app Calcolo impasti: copia tutto questo messaggio e incollalo in "Ricevi una ricetta".',
+    lines.push('', 'Per aggiungerla all\'app Baking Bread (https://joefunky.github.io/impasti/): copia tutto questo messaggio e incollalo in "Ricevi una ricetta".',
                SHARE_TAG + toB64(JSON.stringify({ v: 1, ...data })));
     return lines.join('\n');
   }
