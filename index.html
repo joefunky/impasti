@@ -648,6 +648,16 @@
     <details id="ddtBox">
       <summary>Temperatura dell'acqua</summary>
       <p class="sub" style="margin-bottom:10px">La chimica è lo studio del cambiamento. Anche dell'impasto. Con l'impasto sempre alla stessa temperatura, i tempi di lievitazione tornano.</p>
+      <div class="field">
+        <label for="ddtMethod">Che impasto è</label>
+        <select id="ddtMethod">
+          <option value="auto" selected>Come la ricetta scelta</option>
+          <option value="frigo">Diretto che va in frigo: 23–24 °C</option>
+          <option value="giornata">Con biga o poolish, in giornata: 25–26 °C</option>
+          <option value="madre">Con lievito madre: 26–28 °C</option>
+          <option value="libero">Scelgo io</option>
+        </select>
+      </div>
       <div class="row field">
         <div>
           <label for="ddtGoal">Impasto finito (°C)</label>
@@ -893,6 +903,10 @@
     ['Crosta pallida', 'Forno poco caldo o impasto troppo lievitato, che ha consumato gli zuccheri. Scalda il forno più a lungo, accorcia la lievitazione o aggiungi l\'1% di malto.'],
     ['Pizza gommosa nel forno di casa', 'Il forno di casa è freddo per la pizza: massima temperatura, pietra o acciaio sul ripiano più alto, scaldati almeno 45 minuti, e grill nell\'ultimo minuto.'],
     ['L\'altra volta era perfetto, oggi no', 'Un impasto riuscito non vuol dire che il prossimo verrà uguale. Cambiano la temperatura dell\'acqua e della farina, la farina stessa, i semi (bevono acqua), la lievitazione in frigo o fuori, l\'impastatrice (alcune scaldano di più) e quanti kg impasti: più impasto c\'è, più tiene il caldo e più lievita in fretta. Segna tutto nel Diario e riparti dai numeri con Temperatura dell\'acqua e Quanto lievito. Ogni lotto ha la sua chimica.'],
+    ['Pane con i semi', 'Tostali in forno 10–12 minuti a 180 °C e appena escono coprili con acqua fredda, circa lo stesso peso (il doppio se li prepari il giorno prima). Sono piccoli ma bevono tanto: se non gli dai acqua tu, se la prendono dalla mollica e il pane secca prima. Aggiungili verso la fine dell\'impasto, e non più del 10% del peso della farina.'],
+    ['La biga in frigo non parte', 'In frigo una biga dura fatica a lavorare. Fai la biga al 50% d\'acqua invece del 44–45%, lasciala 30 minuti a temperatura ambiente perché si avvii e solo dopo mettila in frigo, anche fino a 24 ore.'],
+    ['Più lievita, meglio è?', 'No. Oltre le 48 ore di solito l\'impasto non migliora: pizza e pane colorano meno in cottura e perdono croccantezza. Tra 24 e 48 ore si sta benissimo. Non è vino.'],
+    ['Planetaria, spirale o a mano', 'La spirale scalda di più l\'impasto, la planetaria un po\' meno, a mano quasi niente: per questo nella Temperatura dell\'acqua si sceglie come impasti. Con poco impasto la spirale lavora male e ci mette di più a formare la maglia: meglio caricarla al peso giusto. In planetaria metti l\'olio presto, insieme a parte dell\'acqua: messo alla fine fa scivolare l\'impasto, che gira senza lavorare e si scalda.'],
     ['Il lievito madre sa troppo di acido', 'Rinfrescalo più spesso e usalo al picco, quando è raddoppiato. Tenuto più duro (meno acqua) e più al caldo diventa più dolce.'],
   ];
 
@@ -983,7 +997,7 @@
     if (b.support === 'pietra' || b.support === 'acciaio') t.push('Scalda la ' + (b.support === 'pietra' ? 'pietra' : 'lastra d\'acciaio') + ' nel forno almeno 45 minuti prima di infornare.');
     if (b.support === 'pentola') t.push('Scalda la pentola vuota nel forno. Cuoci col coperchio per i primi 20–25 minuti, poi senza, così la crosta si colora.');
     if (b.steam && b.support !== 'pentola') t.push('Vapore: metti una teglia vuota sul fondo mentre il forno si scalda e versaci un bicchiere d\'acqua appena inforni. Toglila dopo 15 minuti.');
-    if (b.support === 'teglia') t.push('Per una base croccante tieni la teglia sul fondo del forno nei primi minuti, poi spostala più in alto.');
+    if (b.support === 'teglia') t.push('Forno al massimo. Tieni la teglia sul fondo del forno per più di metà cottura, così sotto diventa croccante, poi spostala a metà forno. Guarda sotto prima di sfornare. La mozzarella mettila solo negli ultimi minuti, quanto basta a scioglierla.');
     if (b.support === 'fornopizza') t.push('Gira la pizza a metà cottura per cuocerla in modo uniforme.');
     if (b.min >= 25 && b.support !== 'fornopizza') t.push('È cotto quando al cuore arriva a 96–98 °C (92–95 °C per i pani morbidi con latte e burro), o se battendo sotto suona vuoto. Taglialo dopo almeno un\'ora.');
     return t;
@@ -1235,6 +1249,7 @@
     renderResult();
     renderPlan();
     renderSteps();
+    if ($('ddtMethod')) renderDDT();
     $('btnDelete').disabled = recipes.length <= 1;
   }
 
@@ -1974,7 +1989,27 @@
 
   // ---------- temperatura dell'acqua ----------
   // Acqua = (temperatura voluta × numero di fattori) − stanza − farina − [prefermento] − riscaldamento dell'impasto.
+  // Temperatura dell'impasto finito consigliata per il tipo di impasto.
+  const DDT_GOALS = { frigo: 23.5, giornata: 25.5, madre: 27 };
+  function ddtMethodFor(r) {
+    if (r.ingredients.some(i => isMadre(i.name) && Number(i.qty) > 0)) return 'madre';
+    if (r.pref?.on) return 'giornata';
+    if (r.phases.some(p => /frigo/i.test(p.name) && !/fuori/i.test(p.name))) return 'frigo';
+    return null;
+  }
+  const DDT_WHY = { frigo: 'un impasto diretto che va in frigo: più fresco, così in frigo non corre troppo',
+                    giornata: 'un impasto con biga o poolish che finisci in giornata',
+                    madre: 'un impasto col lievito madre, che lavora piano e vuole caldo' };
+  // Valore da usare: dal metodo scelto, o quello scritto a mano.
+  function ddtGoalNow() {
+    const m = $('ddtMethod').value;
+    if (m === 'libero') return parseNum($('ddtGoal').value);
+    const k = m === 'auto' ? ddtMethodFor(current()) : m;
+    return k ? DDT_GOALS[k] : 25;
+  }
   function renderDDT() {
+    const m = $('ddtMethod').value;
+    if (m !== 'libero') $('ddtGoal').value = String(ddtGoalNow());
     const goal = parseNum($('ddtGoal').value), room = parseNum($('ddtRoom').value), flour = parseNum($('ddtFlour').value);
     const mix = Number($('ddtMix').value), pre = parseNum($('ddtPre').value);
     const out = $('ddtOut'), note = $('ddtNote');
@@ -1983,9 +2018,16 @@
     out.replaceChildren('Acqua a ', el('b', { textContent: fmtNum(Math.round(water)) + ' °C' }));
     if (water < 2) note.textContent = 'Più fredda di così non si può: usa acqua di frigo con qualche cubetto di ghiaccio (pesato insieme all\'acqua) e impasta un po\' meno a lungo.';
     else if (water > 38) note.textContent = 'Sopra i 38 °C rischi di stressare il lievito: usa acqua a 35 °C e allunga un po\' i tempi.';
-    else note.textContent = 'Per quasi tutti gli impasti va bene un impasto finito a 24–26 °C.';
+    else {
+      const k = m === 'auto' ? ddtMethodFor(current()) : m;
+      note.textContent = k && DDT_WHY[k] ? 'Impasto a ' + fmtNum(goal) + ' °C: è ' + DDT_WHY[k] + '.'
+        : (m === 'libero' ? 'Di solito: 23–24 °C se va in frigo, 25–26 °C con biga o poolish in giornata, 26–28 °C col lievito madre.'
+                          : 'Per un impasto diretto in giornata va bene 25 °C.');
+    }
   }
-  for (const id of ['ddtGoal', 'ddtRoom', 'ddtFlour', 'ddtPre']) $(id).addEventListener('input', renderDDT);
+  for (const id of ['ddtRoom', 'ddtFlour', 'ddtPre']) $(id).addEventListener('input', renderDDT);
+  $('ddtGoal').addEventListener('input', () => { $('ddtMethod').value = 'libero'; renderDDT(); renderSteps(); });
+  $('ddtMethod').addEventListener('change', () => { renderDDT(); renderSteps(); });
   $('ddtMix').addEventListener('change', renderDDT);
 
   // ---------- consigli ----------
@@ -2051,7 +2093,7 @@
     { re: /chiusura/i, text: 'Spezzetta il prefermento nella ciotola con l\'acqua della chiusura e scioglilo bene. Aggiungi la farina a poco a poco, poi il sale quando l\'impasto ha già preso corpo, e per ultimi i grassi.',
       ready: 'Pronto quando è liscio e, tirandone un pezzetto, si allunga in un velo sottile senza strapparsi.' },
     { re: /autolisi/i, text: 'Mescola solo farina e acqua, giusto finché non vedi più farina asciutta. Copri e lascia riposare: il glutine comincia a formarsi da solo e dopo l\'impasto sarà più facile e più estensibile.' },
-    { re: /biga/i, text: 'Mescola farina, acqua e lievito per 2–3 minuti, appena: deve restare a grumi, non liscia. Copri e lascia possibilmente a 16–18 °C.',
+    { re: /biga/i, text: 'Mescola farina, acqua e lievito per 2–3 minuti, appena: deve restare a grumi, non liscia. Copri e lascia possibilmente a 16–18 °C. Se invece va in frigo, falla al 50% d\'acqua e lasciala 30 minuti fuori prima di metterla dentro, altrimenti fatica a partire.',
       ready: 'Pronta quando è gonfia, profuma di yogurt e, aprendola, dentro è piena di filamenti.' },
     { re: /poolish/i, text: 'Sciogli il lievito nell\'acqua, aggiungi la farina e mescola con un cucchiaio fino a una pastella liscia. Copri.',
       ready: 'Pronto quando la superficie è piena di bolle e al centro comincia appena ad abbassarsi.' },
@@ -2091,7 +2133,7 @@
     // 0 · Preparazione: pesa tutto
     const prep = [el('p', { textContent: 'Pesa tutto prima di cominciare. Le dosi sono quelle del Laboratorio.' })];
     if (out.rows) prep.push(tbl(out.rows));
-    const goal = parseNum($('ddtGoal').value), room = parseNum($('ddtRoom').value), fl = parseNum($('ddtFlour').value), pre = parseNum($('ddtPre').value);
+    const goal = $('ddtMethod').value === 'auto' ? (DDT_GOALS[ddtMethodFor(r)] || 25) : ddtGoalNow(), room = parseNum($('ddtRoom').value), fl = parseNum($('ddtFlour').value), pre = parseNum($('ddtPre').value);
     if ([goal, room, fl].every(isFinite) && out.rows?.some(x => isWater(x.name))) {
       const w = isFinite(pre) ? goal * 4 - room - fl - pre - Number($('ddtMix').value) : goal * 3 - room - fl - Number($('ddtMix').value);
       prep.push(el('p', { textContent: 'Acqua a circa ' + Math.round(Math.min(Math.max(w, 2), 38)) + ' °C, per un impasto a ' + fmtNum(goal) + ' °C (si regola nella tab Lievito).' }));
