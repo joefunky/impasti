@@ -98,6 +98,53 @@
   .subbox > .row:last-child, .subbox > .field:last-child { margin-bottom: 0; }
   .conv { font-size: 1rem; margin: 6px 0; }
   .conv b { font-size: 1.15rem; }
+  .ph-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .ph-row input.name { flex: 2; min-width: 0; }
+  .ph-row input.h, .ph-row input.m { flex: 0 0 60px; width: 60px; }
+  .ph-head { display: flex; gap: 8px; font-size: .75rem; color: var(--muted); margin-bottom: 2px; }
+  .ph-head span:first-child { flex: 2; } .ph-head span.u { flex: 0 0 60px; } .ph-head span.x { flex: 0 0 44px; }
+  /* Pianificatore e timer */
+  ul.plan { list-style: none; padding: 0; margin: 8px 0; }
+  ul.plan li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .95rem; }
+  ul.plan .when { flex: 0 0 auto; min-width: 86px; font-variant-numeric: tabular-nums; font-weight: 650; }
+  ul.plan .what { flex: 1; min-width: 0; }
+  ul.plan small { color: var(--muted); }
+  ul.plan li.key .what { font-weight: 650; }
+  ul.plan a.cal { text-decoration: none; font-size: 1.1rem; padding: 6px; line-height: 1; }
+  .timer-card { border: 2px solid var(--accent); }
+  .countdown { font-size: 2.4rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 2px 0 4px; line-height: 1.1; }
+  .timer-now { font-size: 1.05rem; font-weight: 650; margin: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .timer-card.ring { animation: ring .7s ease-in-out 5; }
+    @keyframes ring { 50% { background: var(--soft); } }
+  }
+  /* Tavola periodica delle farine */
+  .ptable { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .ptile {
+    position: relative; aspect-ratio: 1 / 1.08; padding: 0; min-height: 0; border-radius: 4px;
+    border: 2px solid var(--tile-line); background: linear-gradient(155deg, var(--tile-a), var(--tile-b));
+    color: #fff; font-size: 1.35rem; font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.18);
+  }
+  .ptile small, .ptile i { position: absolute; font-size: .55rem; font-style: normal; font-weight: 600; opacity: .9; }
+  .ptile small { top: 3px; left: 4px; }
+  .ptile i { bottom: 3px; right: 4px; }
+  .ptile[aria-pressed="true"] { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .fcard dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0; font-size: .9rem; }
+  .fcard dt { color: var(--muted); }
+  .fcard dd { margin: 0; }
+  .fcard p { margin: 6px 0 0; font-size: .92rem; }
+  .tips { margin: 8px 0 0; padding-left: 18px; font-size: .85rem; color: var(--muted); }
+  .tips li { margin-bottom: 4px; }
+  .faq details { border-top: 1px solid var(--line); padding: 8px 0 4px; }
+  .faq summary { font-weight: 500; }
+  .faq details[open] summary { margin-bottom: 4px; }
+  .faq p { margin: 0 0 6px; font-size: .9rem; }
+  .list-item { border-top: 1px solid var(--line); padding: 10px 0; display: flex; gap: 10px; align-items: center; }
+  .list-item > div { flex: 1; min-width: 0; }
+  .list-item p { margin: 2px 0; font-size: .9rem; }
+  .list-item .sub { margin: 0; }
+  .result-big { font-size: 1.1rem; margin: 6px 0; }
+  .result-big b { font-size: 1.5rem; }
 </style>
 </head>
 <body>
@@ -107,6 +154,20 @@
     <span class="word" aria-hidden="true"><span class="tile"><small>35</small>Br<i>79,904</i></span>ead</span>
   </h1>
   <p class="tagline">Io sono quello che impasta.</p>
+
+  <!-- Timer della lavorazione (compare solo quando è avviato) -->
+  <section class="card timer-card hidden" id="timerCard" aria-live="polite">
+    <p class="sub" id="timerRecipe"></p>
+    <p class="timer-now" id="timerNow"></p>
+    <div class="countdown" id="timerLeft"></div>
+    <p class="note" style="margin-top:0" id="timerNext"></p>
+    <label class="check hidden" id="wakeWrap"><input type="checkbox" id="wakeOn"> Tieni acceso lo schermo</label>
+    <div class="actions">
+      <button id="timerSkip">Fase finita, vai avanti</button>
+      <button id="timerMore">+15 min</button>
+      <button id="timerStop" class="danger">Ferma</button>
+    </div>
+  </section>
 
   <!-- Calcolatore -->
   <section class="card" id="calc">
@@ -136,7 +197,7 @@
     </div>
     <div class="row field">
       <div>
-        <label for="rounding">Arrotonda</label>
+        <label for="rounding">Arrotonda (niente mezze misure)</label>
         <select id="rounding">
           <option value="0">Grammi precisi</option>
           <option value="5">A 5 g</option>
@@ -221,13 +282,53 @@
       </div>
     </div>
 
-    <div class="field">
-      <label for="edLiev">Lievitazione</label>
-      <input id="edLiev" type="text" placeholder="es. 18 h in frigo + 4 h a temperatura ambiente">
+    <div class="subbox">
+      <label>Fasi della lavorazione, fino al momento di infornare: servono al pianificatore e al timer</label>
+      <div class="ph-head" aria-hidden="true"><span>Fase</span><span class="u">Ore</span><span class="u">Minuti</span><span class="x"></span></div>
+      <div id="edPhases"></div>
+      <div class="actions" style="margin-top:0">
+        <button id="edPhaseAdd">+ Fase</button>
+      </div>
     </div>
+
+    <div class="subbox">
+      <label>Cottura</label>
+      <div class="row field">
+        <div>
+          <label for="edTemp">Temperatura (°C)</label>
+          <input id="edTemp" type="number" inputmode="numeric" min="0" step="any">
+        </div>
+        <div>
+          <label for="edBakeMin">Minuti</label>
+          <input id="edBakeMin" type="number" inputmode="numeric" min="0" step="any">
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <label for="edSupport">Come</label>
+          <select id="edSupport">
+            <option value="">—</option>
+            <option value="pietra">Su pietra refrattaria</option>
+            <option value="acciaio">Su acciaio</option>
+            <option value="teglia">In teglia</option>
+            <option value="stampo">In stampo</option>
+            <option value="pentola">In pentola di ghisa</option>
+            <option value="fornopizza">In forno per pizza</option>
+          </select>
+        </div>
+        <div>
+          <label class="check"><input type="checkbox" id="edSteam"> Con vapore</label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="edForno">Note sulla cottura</label>
+        <input id="edForno" type="text" placeholder="es. ultimi 10 minuti con lo sportello socchiuso">
+      </div>
+    </div>
+
     <div class="field">
-      <label for="edForno">Forno</label>
-      <input id="edForno" type="text" placeholder="es. 250 °C, 40 minuti con vapore">
+      <label for="edLiev">Note sulla lievitazione</label>
+      <input id="edLiev" type="text" placeholder="es. 18 h in frigo + 4 h a temperatura ambiente">
     </div>
     <div class="field">
       <label for="edProc">Procedimento</label>
@@ -238,6 +339,113 @@
       <button id="edSave" class="primary">Salva</button>
       <button id="edCancel">Annulla</button>
     </div>
+  </section>
+
+  <!-- Pianificatore -->
+  <section class="card">
+    <details id="planBox">
+      <summary>Pianifica l'infornata</summary>
+      <p class="sub" style="margin-bottom:10px">Come Gus: tutto calcolato al minuto. Usa le fasi della ricetta scelta sopra.</p>
+      <div id="planBody">
+        <div class="row field">
+          <div>
+            <label for="planMode">Voglio</label>
+            <select id="planMode">
+              <option value="end">infornare alle</option>
+              <option value="start">cominciare alle</option>
+            </select>
+          </div>
+          <div>
+            <label for="planTime">Giorno e ora</label>
+            <input id="planTime" type="datetime-local">
+          </div>
+        </div>
+        <ul class="plan" id="planList"></ul>
+        <p class="warn hidden" id="planWarn"></p>
+        <div class="actions">
+          <button id="planStart" class="primary">Avvia il timer</button>
+          <button id="planIcs">Scarica per il calendario</button>
+        </div>
+        <p class="note">Il timer suona solo con l'app aperta. Per promemoria sicuri, anche a telefono spento, tocca 📅 accanto a ogni fase (Google Calendar) o scarica il file per il calendario.</p>
+      </div>
+      <p class="note hidden" id="planEmpty">Questa ricetta non ha ancora le fasi. Aggiungile da <em>Modifica ricetta → Fasi della lavorazione</em>.</p>
+    </details>
+  </section>
+
+  <!-- Ricettario -->
+  <section class="card">
+    <details id="bookBox">
+      <summary>Ricettario Los Panes Hermanos</summary>
+      <p class="sub" style="margin-bottom:6px">Ricette classiche da cui partire, con fasi e cottura già pronte. Sono un punto di partenza: adattale alla tua farina e al tuo forno.</p>
+      <div id="bookList"></div>
+      <p class="note" id="bookMsg"></p>
+    </details>
+  </section>
+
+  <!-- Farine -->
+  <section class="card">
+    <details id="flourBox">
+      <summary>Tavola periodica delle farine</summary>
+      <p class="sub" style="margin-bottom:10px">In alto a sinistra le proteine, in basso la forza (W). Tocca un elemento.</p>
+      <div class="ptable" id="flourTable"></div>
+      <div class="fcard" id="flourCard"></div>
+      <p class="note">Valori tipici: quelli veri sono scritti sul sacco o sul sito del mulino, e cambiano da una marca all'altra.</p>
+      <h3>Mix di due farine</h3>
+      <div class="row field">
+        <div>
+          <label for="mixW1">W prima farina</label>
+          <input id="mixW1" type="number" inputmode="numeric" min="0" value="380">
+        </div>
+        <div>
+          <label for="mixW2">W seconda</label>
+          <input id="mixW2" type="number" inputmode="numeric" min="0" value="220">
+        </div>
+        <div>
+          <label for="mixPct">% della prima</label>
+          <input id="mixPct" type="number" inputmode="numeric" min="0" max="100" value="30">
+        </div>
+      </div>
+      <p class="result-big" id="mixOut"></p>
+    </details>
+  </section>
+
+  <!-- Temperatura dell'acqua -->
+  <section class="card">
+    <details id="ddtBox">
+      <summary>Temperatura dell'acqua</summary>
+      <p class="sub" style="margin-bottom:10px">La chimica è lo studio del cambiamento. Anche dell'impasto. Con l'impasto sempre alla stessa temperatura, i tempi di lievitazione tornano.</p>
+      <div class="row field">
+        <div>
+          <label for="ddtGoal">Impasto finito (°C)</label>
+          <input id="ddtGoal" type="number" inputmode="decimal" step="any" value="25">
+        </div>
+        <div>
+          <label for="ddtRoom">Stanza (°C)</label>
+          <input id="ddtRoom" type="number" inputmode="decimal" step="any" value="20">
+        </div>
+        <div>
+          <label for="ddtFlour">Farina (°C)</label>
+          <input id="ddtFlour" type="number" inputmode="decimal" step="any" value="20">
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <label for="ddtMix">Impasti</label>
+          <select id="ddtMix">
+            <option value="2">A mano</option>
+            <option value="6" selected>Con impastatrice o planetaria</option>
+            <option value="10">Con impastatrice a spirale</option>
+          </select>
+        </div>
+        <div>
+          <label for="ddtPre">Lievito madre o prefermento (°C)</label>
+          <input id="ddtPre" type="number" inputmode="decimal" step="any" placeholder="non c'è">
+        </div>
+      </div>
+      <p class="result-big" id="ddtOut"></p>
+      <p class="note" id="ddtNote"></p>
+      <p class="note">Il riscaldamento dovuto all'impasto è indicativo. Misura l'impasto finito con un termometro: se esce 2 °C più caldo del voluto, la prossima volta usa l'acqua 2 °C più fredda.</p>
+    </details>
   </section>
 
   <!-- Ricevi ricetta -->
@@ -280,6 +488,47 @@
     </details>
   </section>
 
+  <!-- Consigli -->
+  <section class="card">
+    <details id="tipsBox">
+      <summary>Better Call Sale: problemi e soluzioni</summary>
+      <p class="sub" style="margin-bottom:6px">Non ti serve un avvocato penalista. Ti serve un avvocato panista.</p>
+      <div class="faq" id="faqList"></div>
+    </details>
+  </section>
+
+  <!-- Diario -->
+  <section class="card">
+    <details id="diaryBox">
+      <summary>Diario del laboratorio</summary>
+      <p class="sub" style="margin-bottom:10px">Segna com'è andata: si salvano anche la ricetta e le dosi che hai sopra.</p>
+      <div class="row field">
+        <div>
+          <label for="diaryDate">Data</label>
+          <input id="diaryDate" type="date">
+        </div>
+        <div>
+          <label for="diaryRate">Risultato</label>
+          <select id="diaryRate">
+            <option value="5">★★★★★ Purezza 99,1%</option>
+            <option value="4" selected>★★★★ Ottimo</option>
+            <option value="3">★★★ Buono</option>
+            <option value="2">★★ Da rivedere</option>
+            <option value="1">★ Roba da Jesse</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="diaryNote">Note</label>
+        <textarea id="diaryNote" rows="3" placeholder="es. alveolatura bella, la prossima volta 5 minuti in più di forno"></textarea>
+      </div>
+      <div class="actions" style="margin-top:0">
+        <button id="diaryAdd" class="primary">Salva l'infornata</button>
+      </div>
+      <div id="diaryList" style="margin-top:12px"></div>
+    </details>
+  </section>
+
   <!-- Google Sheet -->
   <section class="card">
     <details id="sheetBox">
@@ -303,7 +552,7 @@
 
   <footer>
     <p>Hai sbagliato il sale? <strong>Better Call Sale</strong> ⚖️</p>
-    <p>Formula approvata da Heisenbread. Purezza della farina: 99,1%.</p>
+    <p id="quote">Formula approvata da Heisenbread. Purezza della farina: 99,1%.</p>
   </footer>
 </main>
 
@@ -312,10 +561,15 @@
   const LS_RECIPES = 'impasti.ricette.v1';
   const LS_STATE = 'impasti.stato.v1';
   const LS_SHEET = 'impasti.foglio.v1';
+  const LS_PLAN = 'impasti.piano.v1';
+  const LS_DIARY = 'impasti.diario.v1';
   const SHARE_TAG = 'IMPASTO:';
 
   const PREF_DEFAULTS = { biga: { flourPct: 50, hyd: 45 }, poolish: { flourPct: 30, hyd: 100 } };
   const prefLabel = (t) => t === 'poolish' ? 'Poolish' : 'Biga';
+  const SUPPORTS = { pietra: 'su pietra refrattaria', acciaio: 'su acciaio', teglia: 'in teglia', stampo: 'in stampo',
+                     pentola: 'in pentola di ghisa', fornopizza: 'in forno per pizza' };
+  const ph = (name, h, m = 0) => ({ name, min: h * 60 + m });
 
   const DEFAULT_RECIPES = [
     { id: 'pane', name: 'Pane', madreHyd: 50, ingredients: [
@@ -323,19 +577,115 @@
       { name: 'Acqua', qty: 2400 },
       { name: 'Lievito madre', qty: 640 },
       { name: 'Sale', qty: 80 },
-    ]},
+    ],
+      phases: [ph('Impasto', 0, 20), ph('Puntata, con 3 pieghe ogni 30 minuti', 3), ph('Formatura', 0, 15), ph('Appretto in frigo', 12)],
+      bake: { temp: 250, min: 45, support: 'pentola', steam: false },
+    },
     { id: 'pizza', name: 'Pizza', madreHyd: 50, ingredients: [
       { name: 'Farina', qty: 100 },
       { name: 'Acqua', qty: 70 },
       { name: 'Lievito di birra fresco', qty: 0.25 },
       { name: 'Sale', qty: 2.8 },
       { name: 'Olio', qty: 3 },
-    ]},
+    ],
+      phases: [ph('Impasto', 0, 20), ph('Puntata', 2), ph('Staglio: dividi in panetti', 0, 15), ph('Panetti in frigo', 20), ph('Panetti fuori dal frigo', 3)],
+      bake: { temp: 280, min: 7, support: 'pietra', steam: false },
+    },
+  ];
+
+  // Ricettario: proporzioni classiche scritte come percentuali sulla farina.
+  const BOOK = [
+    { name: 'Pizza napoletana', desc: 'Idratazione 62%, 24 h a temperatura ambiente. Panetti da 250 g.', r: {
+      ingredients: [{ name: 'Farina 0 (W 250–300)', qty: 100 }, { name: 'Acqua', qty: 62 }, { name: 'Sale', qty: 2.8 }, { name: 'Lievito di birra fresco', qty: 0.1 }],
+      phases: [ph('Impasto', 0, 20), ph('Puntata a 20–22 °C', 2), ph('Staglio: panetti da 250 g', 0, 15), ph('Appretto a 20–22 °C', 20)],
+      bake: { temp: 280, min: 7, support: 'pietra', steam: false },
+      notes: { lievitazione: 'Se la casa è più calda di 24 °C dimezza il lievito.', forno: 'Pietra sul ripiano più alto; ultimo minuto col grill. In forno per pizza: 450 °C per 60–90 secondi.', procedimento: 'Sciogli il sale nell\'acqua, aggiungi metà farina e il lievito, poi il resto della farina a poco a poco. Impasta finché è liscio. Stendi a mano, senza mattarello, lasciando il bordo.' } } },
+    { name: 'Pizza in teglia romana', desc: 'Idratazione 80%, 24 h in frigo. Circa 700 g per una teglia 30×40.', r: {
+      ingredients: [{ name: 'Farina 0 forte (W 300–350)', qty: 100 }, { name: 'Acqua', qty: 80 }, { name: 'Sale', qty: 2.5 }, { name: 'Olio', qty: 3 }, { name: 'Lievito di birra fresco', qty: 0.5 }],
+      phases: [ph('Impasto, acqua aggiunta a poco a poco', 0, 25), ph('3 giri di pieghe ogni 20 minuti', 1), ph('Riposo a temperatura ambiente', 1), ph('In frigo', 24), ph('Fuori dal frigo', 3), ph('Stesura in teglia unta e riposo', 0, 45)],
+      bake: { temp: 250, min: 18, support: 'teglia', steam: false },
+      notes: { lievitazione: '', forno: 'Prima sul fondo del forno per 8 minuti, poi sul ripiano centrale.', procedimento: 'Tieni da parte il 10% dell\'acqua e aggiungila solo quando l\'impasto è già incordato. Sale e olio alla fine. Stendi con i polpastrelli, senza schiacciare i bordi.' } } },
+    { name: 'Focaccia genovese', desc: 'Idratazione 60% più salamoia, pronta in circa 3 ore.', r: {
+      ingredients: [{ name: 'Farina 0 (W 260)', qty: 100 }, { name: 'Acqua', qty: 60 }, { name: 'Olio extravergine', qty: 8 }, { name: 'Sale', qty: 2 }, { name: 'Malto', qty: 1 }, { name: 'Lievito di birra fresco', qty: 1.5 }],
+      phases: [ph('Impasto', 0, 15), ph('Riposo in ciotola', 0, 30), ph('Stesura in teglia con olio', 0, 15), ph('Lievitazione in teglia', 1), ph('Buchi con le dita e salamoia', 0, 10), ph('Ultima lievitazione', 0, 45)],
+      bake: { temp: 240, min: 18, support: 'teglia', steam: false },
+      notes: { lievitazione: '', forno: 'Ripiano basso per la prima metà, poi centrale.', procedimento: 'Salamoia: per ogni 500 g di farina, 50 g di acqua, 25 g di olio e 6 g di sale, emulsionati. Versala sopra dopo aver fatto i buchi con le dita, così resta nelle fossette.' } } },
+    { name: 'Ciabatta', desc: 'Tutta la farina in biga, idratazione finale 80%.', r: {
+      ingredients: [{ name: 'Farina 0 forte (W 330)', qty: 100 }, { name: 'Acqua', qty: 80 }, { name: 'Lievito di birra fresco', qty: 1 }, { name: 'Sale', qty: 2.2 }, { name: 'Malto', qty: 1 }],
+      pref: { on: true, type: 'biga', flourPct: 100, hyd: 44, yeast: 1 },
+      phases: [ph('Biga a 18 °C', 18), ph('Chiusura: biga, acqua, malto, poi sale', 0, 20), ph('Puntata, con 2 pieghe', 1), ph('Taglio dei pezzi', 0, 10), ph('Appretto su telo infarinato', 0, 45)],
+      bake: { temp: 240, min: 25, support: 'pietra', steam: true },
+      notes: { lievitazione: '', forno: 'Ultimi 5 minuti con lo sportello socchiuso.', procedimento: 'Biga: impasta appena, deve restare a grumi. Alla chiusura aggiungi l\'acqua poco per volta. Non formare: taglia a rettangoli e capovolgili sulla pala.' } } },
+    { name: 'Baguette', desc: 'Con poolish, idratazione 70%. Pezzi da 300 g.', r: {
+      ingredients: [{ name: 'Farina 0 (W 250)', qty: 100 }, { name: 'Acqua', qty: 70 }, { name: 'Lievito di birra fresco', qty: 0.5 }, { name: 'Sale', qty: 2 }],
+      pref: { on: true, type: 'poolish', flourPct: 30, hyd: 100, yeast: 0.1 },
+      phases: [ph('Poolish a temperatura ambiente', 12), ph('Impasto', 0, 15), ph('Puntata, con 1 piega', 1), ph('Divisione e preforma', 0, 10), ph('Riposo', 0, 20), ph('Formatura', 0, 15), ph('Appretto su telo', 0, 45)],
+      bake: { temp: 240, min: 22, support: 'pietra', steam: true },
+      notes: { lievitazione: '', forno: 'Tagli con la lametta quasi paralleli all\'asse, appena prima di infornare.', procedimento: '' } } },
+    { name: 'Pane di semola', desc: 'Semola rimacinata e lievito madre, idratazione 75%.', r: {
+      madreHyd: 50,
+      ingredients: [{ name: 'Semola rimacinata', qty: 100 }, { name: 'Acqua', qty: 75 }, { name: 'Lievito madre', qty: 20 }, { name: 'Sale', qty: 2.2 }],
+      phases: [ph('Autolisi: semola e acqua', 1), ph('Impasto', 0, 20), ph('Puntata, con 3 pieghe', 3), ph('Formatura', 0, 15), ph('Appretto in frigo', 12)],
+      bake: { temp: 230, min: 50, support: 'pietra', steam: true },
+      notes: { lievitazione: '', forno: 'Vapore per i primi 15 minuti.', procedimento: 'La semola beve lentamente: tieni da parte un po\' d\'acqua e aggiungila durante l\'impasto. Inforna direttamente dal frigo.' } } },
+    { name: 'Pan bauletto', desc: 'Pane morbido in cassetta, con latte e burro.', r: {
+      ingredients: [{ name: 'Farina 0 (W 280)', qty: 100 }, { name: 'Latte', qty: 55 }, { name: 'Burro', qty: 8 }, { name: 'Zucchero', qty: 5 }, { name: 'Sale', qty: 2 }, { name: 'Lievito di birra fresco', qty: 2.5 }],
+      phases: [ph('Impasto, burro alla fine', 0, 25), ph('Puntata', 1, 30), ph('Formatura nello stampo', 0, 10), ph('Appretto nello stampo', 1, 30)],
+      bake: { temp: 180, min: 35, support: 'stampo', steam: false },
+      notes: { lievitazione: 'Pronto quando la cupola arriva al bordo dello stampo.', forno: 'Se colora troppo, copri con alluminio negli ultimi 10 minuti.', procedimento: 'Il burro morbido va aggiunto a pezzetti quando l\'impasto è già liscio. Sforna e togli subito dallo stampo.' } } },
+  ];
+
+  // Tavola periodica: "numero atomico" = proteine, "peso atomico" = W.
+  const FLOURS = [
+    { sym: '00', top: '9', w: '90–170', name: 'Farina 00 debole', prot: '9–10,5%', hyd: '50–58%', liev: '2–4 h',
+      use: 'Biscotti, frolle, dolci. Da sola regge poco: per pane e pizza mischiala con una più forte.' },
+    { sym: '0', top: '11', w: '180–260', name: 'Farina 0 media', prot: '11–12,5%', hyd: '58–65%', liev: '4–12 h',
+      use: 'Pane comune, focaccia, pizza a lievitazione breve o media.' },
+    { sym: 'Pz', top: '13', w: '270–330', name: 'Farina 0 forte, da pizza', prot: '12,5–13,5%', hyd: '60–75%', liev: '12–48 h, anche in frigo',
+      use: 'Pizza napoletana e in teglia, biga, pane ad alta idratazione.' },
+    { sym: 'Mn', top: '14', w: '350–450', name: 'Manitoba', prot: '13,5–15%', hyd: '65–80%', liev: '24–72 h',
+      use: 'Lievitazioni lunghe, panettone, biga. In piccola parte rinforza una farina debole.' },
+    { sym: 'T1', top: '12', w: '200–300', name: 'Tipo 1', prot: '11–13%', hyd: '65–75%', liev: '6–24 h',
+      use: 'Pane rustico e pizza più saporita. Ha più crusca della 0: assorbe qualche punto di acqua in più.' },
+    { sym: 'T2', top: '12', w: '180–260', name: 'Tipo 2, semintegrale', prot: '11–13%', hyd: '68–78%', liev: '4–18 h',
+      use: 'Pane rustico e di lievito madre. Fermenta più in fretta della 0.' },
+    { sym: 'Ig', top: '13', w: '—', name: 'Integrale', prot: '12–14%', hyd: '75–90%', liev: '3–12 h',
+      use: 'La crusca taglia il glutine e beve tanta acqua: idrata di più, fai un\'autolisi e accorcia i tempi, perché fermenta veloce.' },
+    { sym: 'Se', top: '13', w: '—', name: 'Semola rimacinata di grano duro', prot: '12–14%', hyd: '70–85%', liev: '4–18 h',
+      use: 'Pane di semola, friselle, a volte in parte nella pizza. Assorbe tanta acqua ma lentamente: aggiungila a poco a poco.' },
+    { sym: 'Fa', top: '13', w: '—', name: 'Farro (spelta)', prot: '12–15%', hyd: '60–70%', liev: '3–8 h',
+      use: 'Sapore dolce e nocciolato. Il glutine è fragile: impasta poco e non esagerare con acqua e ore.' },
+    { sym: 'Sg', top: '9', w: '—', name: 'Segale', prot: '8–11%', hyd: '75–90%', liev: '2–6 h',
+      use: 'Pane scuro, nordico. Il glutine quasi non regge: impasto colloso, meglio in stampo e col lievito madre.' },
+  ];
+
+  const FAQ = [
+    ['Ho dimenticato il sale', 'Se non hai ancora iniziato la puntata, scioglilo in un cucchiaio d\'acqua, aggiungilo e impasta altri 3–4 minuti. Se la puntata è già avanti, lascia stare: il pane sarà sciapo, ma si mangia. Sale good, man.'],
+    ['L\'impasto è troppo appiccicoso', 'Spesso è l\'acqua troppa per quella farina, o un impasto ancora indietro. Tieni da parte il 10% dell\'acqua e aggiungila alla fine, solo quando l\'impasto è liscio. Fai le pieghe con le mani bagnate, non infarinate.'],
+    ['Non lievita', 'Controlla la scadenza del lievito e la temperatura: sotto i 20 °C tutto rallenta molto. Mettilo nel forno spento con la luce accesa. Il sale a contatto diretto col lievito fresco lo frena: scioglili separati.'],
+    ['Com\'è pronto? (test del dito)', 'Premi l\'impasto con un dito infarinato. Se la fossetta torna su piano piano e resta un segno, è pronto. Se torna su subito, aspetta. Se resta giù e l\'impasto si sgonfia, è andato oltre.'],
+    ['Il pane si allarga e resta piatto', 'Può essere troppa lievitazione, una formatura senza tensione o una farina debole per tanta acqua. Forma più stretto e prova l\'appretto in frigo: l\'impasto freddo si incide e regge meglio.'],
+    ['Mollica gommosa o umida', 'Di solito è poca cottura, o il pane tagliato caldo. Cuoci fino a 96–98 °C al cuore e aspetta almeno un\'ora prima di tagliare.'],
+    ['Crosta pallida', 'Forno poco caldo o impasto troppo lievitato, che ha consumato gli zuccheri. Scalda il forno più a lungo, accorcia la lievitazione o aggiungi l\'1% di malto.'],
+    ['Pizza gommosa nel forno di casa', 'Il forno di casa è freddo per la pizza: massima temperatura, pietra o acciaio sul ripiano più alto, scaldati almeno 45 minuti, e grill nell\'ultimo minuto.'],
+    ['Il lievito madre sa troppo di acido', 'Rinfrescalo più spesso e usalo al picco, quando è raddoppiato. Tenuto più duro (meno acqua) e più al caldo diventa più dolce.'],
+  ];
+
+  const QUOTES = [
+    'Formula approvata da Heisenbread. Purezza della farina: 99,1%.',
+    'Di\' il mio nome. — Heisenbread',
+    'Jesse, dobbiamo impastare.',
+    'Non sono in pericolo, Skyler. Io sono il forno a 250 °C.',
+    'Sì, scienza, bello! — Jesse, dopo aver calcolato l\'idratazione',
+    'Niente mezze misure: pesa tutto. — Mike',
+    'Il segreto è la precisione. E il rispetto dei tempi. — Gus',
+    'Sale good, man! — Saul',
+    'Io sono quello che bussa. Sotto la pagnotta, per sentire se è cotta.',
   ];
 
   // ---------- utilità ----------
   const $ = (id) => document.getElementById(id);
-  const isFlour = (name) => /farina/i.test(name);
+  const isFlour = (name) => /farin|semol|manitoba/i.test(name);
   const isMadre = (name) => /madre|licoli|pasta acida/i.test(name);
   const isWater = (name) => /acqua/i.test(name);
   const isYeast = (name) => /lievito/i.test(name) && !isMadre(name);
@@ -375,7 +725,43 @@
         forno: str(r?.notes?.forno),
         procedimento: str(r?.notes?.procedimento, 4000),
       },
+      phases: (Array.isArray(r?.phases) ? r.phases : [])
+        .map(p => ({ name: str(p?.name, 80).trim(), min: Math.round(numOr(p?.min, 0)) }))
+        .filter(p => p.name && p.min > 0 && p.min < 60 * 24 * 14).slice(0, 30),
+      bake: {
+        temp: numOr(r?.bake?.temp, 0) > 0 ? numOr(r.bake.temp, 0) : null,
+        min: numOr(r?.bake?.min, 0) > 0 ? Math.round(numOr(r.bake.min, 0)) : null,
+        support: SUPPORTS[r?.bake?.support] ? r.bake.support : '',
+        steam: !!r?.bake?.steam,
+      },
     };
+  }
+
+  // Durate in minuti → "1 h 30 min"
+  function fmtDur(min) {
+    const h = Math.floor(min / 60), m = min % 60;
+    return [h ? h + ' h' : '', m ? m + ' min' : ''].filter(Boolean).join(' ') || '0 min';
+  }
+
+  function bakeText(b) {
+    const parts = [];
+    const tm = [b.temp ? b.temp + ' °C' : '', b.min ? (b.temp ? 'per ' : '') + fmtDur(b.min) : ''].filter(Boolean).join(' ');
+    if (tm) parts.push(tm);
+    if (b.support) parts.push(SUPPORTS[b.support]);
+    if (b.steam) parts.push('con vapore');
+    return parts.join(', ');
+  }
+
+  // Consigli di cottura che dipendono da come cuoci.
+  function bakeTips(b) {
+    const t = [];
+    if (b.support === 'pietra' || b.support === 'acciaio') t.push('Scalda la ' + (b.support === 'pietra' ? 'pietra' : 'lastra d\'acciaio') + ' nel forno almeno 45 minuti prima di infornare.');
+    if (b.support === 'pentola') t.push('Scalda la pentola vuota nel forno. Cuoci col coperchio per i primi 20–25 minuti, poi senza, così la crosta si colora.');
+    if (b.steam && b.support !== 'pentola') t.push('Vapore: metti una teglia vuota sul fondo mentre il forno si scalda e versaci un bicchiere d\'acqua appena inforni. Toglila dopo 15 minuti.');
+    if (b.support === 'teglia') t.push('Per una base croccante tieni la teglia sul fondo del forno nei primi minuti, poi spostala più in alto.');
+    if (b.support === 'fornopizza') t.push('Gira la pizza a metà cottura per cuocerla in modo uniforme.');
+    if (b.min >= 25 && b.support !== 'fornopizza') t.push('È cotto quando al cuore arriva a 96–98 °C (92–95 °C per i pani morbidi con latte e burro), o se battendo sotto suona vuoto. Taglialo dopo almeno un\'ora.');
+    return t;
   }
 
   // ---------- memoria (se il browser la blocca, si va avanti senza) ----------
@@ -384,7 +770,12 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
 
-  let recipes = (store.get(LS_RECIPES, null) || DEFAULT_RECIPES).map(normalize);
+  // Le ricette Pane e Pizza salvate prima che esistessero le fasi ricevono quelle predefinite (una volta sola).
+  let recipes = (store.get(LS_RECIPES, null) || DEFAULT_RECIPES).map(raw => {
+    const d = DEFAULT_RECIPES.find(x => x.id === raw?.id);
+    if (d && raw && !('phases' in raw)) raw = { ...raw, phases: d.phases, bake: raw.bake || d.bake };
+    return normalize(raw);
+  });
   if (!recipes.length) recipes = DEFAULT_RECIPES.map(normalize);
   let state = Object.assign({ recipeId: recipes[0].id, base: 'flour', value: 3200, pieces: 4, pieceWeight: 500, round: 0, margin: 0 },
                             store.get(LS_STATE, {}));
@@ -415,7 +806,7 @@
 
   function compute(recipe) {
     const pcts = percentages(recipe);
-    if (!pcts) return { error: 'La ricetta non ha un ingrediente "farina": aggiungilo per poter calcolare.' };
+    if (!pcts) return { error: 'Senza farina non c\'è Heisenbread: aggiungi un ingrediente che si chiama "farina" (o "semola").' };
     const sumPct = pcts.reduce((s, i) => s + i.pct, 0);
     const margin = 1 + (Number(state.margin) || 0) / 100;
     let flour;
@@ -545,7 +936,7 @@
         el('p', { className: 'sub', textContent: fmtPct(r.pref.flourPct) + '% della farina, idratata al ' + fmtPct(r.pref.hyd) + '%, ' + yeastTxt }),
         makeTable(sp.pre, false),
         el('h3', { textContent: '2 · Chiusura' }),
-        el('p', { className: 'sub', textContent: 'Da aggiungere al ' + label.toLowerCase() + ' quando è pronto' }),
+        el('p', { className: 'sub', textContent: 'Da aggiungere ' + (r.pref.type === 'poolish' ? 'al poolish' : 'alla biga') + ' quando è pronta' + (r.pref.type === 'poolish' ? 'o' : '') }),
         makeTable(sp.close, false),
       );
       for (const w of sp.warnings) warn.append(el('p', { className: 'warn', textContent: w }));
@@ -556,8 +947,15 @@
     const box = $('notes');
     const n = r.notes;
     box.replaceChildren();
+    if (r.phases.length) {
+      const tot = r.phases.reduce((s, p) => s + p.min, 0);
+      box.append(el('p', {}, el('strong', { textContent: 'Fasi (' + fmtDur(tot) + '): ' }), r.phases.map(p => p.name + ' ' + fmtDur(p.min)).join(' → ')));
+    }
     if (n.lievitazione) box.append(el('p', {}, el('strong', { textContent: 'Lievitazione: ' }), n.lievitazione));
-    if (n.forno) box.append(el('p', {}, el('strong', { textContent: 'Forno: ' }), n.forno));
+    const bt = bakeText(r.bake);
+    if (bt || n.forno) box.append(el('p', {}, el('strong', { textContent: 'Cottura: ' }), [bt, n.forno].filter(Boolean).join('. ')));
+    const tips = bakeTips(r.bake);
+    if (tips.length) box.append(el('ul', { className: 'tips' }, ...tips.map(t => el('li', { textContent: t }))));
     if (n.procedimento) box.append(el('p', {}, el('strong', { textContent: 'Procedimento' })), el('p', { className: 'proc', textContent: n.procedimento }));
     box.classList.toggle('hidden', !box.childNodes.length);
   }
@@ -567,6 +965,7 @@
     renderBaseSelect();
     renderInputs();
     renderResult();
+    renderPlan();
     $('btnDelete').disabled = recipes.length <= 1;
   }
 
@@ -576,6 +975,7 @@
     // Un ingrediente di un'altra ricetta può non esistere qui: si riparte dalla farina.
     if (state.base.startsWith('ing:')) { state.base = 'flour'; state.value = 1000; }
     $('shareBox').classList.add('hidden');
+    $('planTime').value = ''; // ogni ricetta ha durate diverse: si riparte dall'orario proposto
     saveState(); renderAll();
   });
   $('base').addEventListener('change', e => {
@@ -610,6 +1010,13 @@
     $('edPrefHyd').value = r.pref.hyd;
     $('edPrefYeast').value = r.pref.yeast ?? '';
     $('edPrefFields').classList.toggle('hidden', !r.pref.on);
+    $('edPhases').replaceChildren();
+    const phases = recipe ? r.phases : [ph('Impasto', 0, 20), ph('Puntata', 2), ph('Formatura', 0, 15), ph('Appretto', 1)];
+    phases.forEach(p => addPhaseRow(p.name, p.min));
+    $('edTemp').value = r.bake.temp ?? '';
+    $('edBakeMin').value = r.bake.min ?? '';
+    $('edSupport').value = r.bake.support;
+    $('edSteam').checked = r.bake.steam;
     $('edLiev').value = r.notes.lievitazione;
     $('edForno').value = r.notes.forno;
     $('edProc').value = r.notes.procedimento;
@@ -629,6 +1036,19 @@
     $('edRows').append(row);
   }
 
+  function addPhaseRow(name = '', min = '') {
+    const n = el('input', { className: 'name', placeholder: 'es. Puntata', value: name });
+    const h = el('input', { className: 'h', inputMode: 'numeric', placeholder: '0', value: min === '' ? '' : String(Math.floor(min / 60) || '') });
+    const m = el('input', { className: 'm', inputMode: 'numeric', placeholder: '0', value: min === '' ? '' : String(min % 60 || '') });
+    h.setAttribute('aria-label', 'Ore'); m.setAttribute('aria-label', 'Minuti');
+    const row = el('div', { className: 'ph-row' });
+    const x = el('button', { className: 'icon', textContent: '×', title: 'Togli' });
+    x.setAttribute('aria-label', 'Togli fase');
+    x.addEventListener('click', () => row.remove());
+    row.append(n, h, m, x);
+    $('edPhases').append(row);
+  }
+
   function saveEditor() {
     const name = $('edName').value.trim();
     const ingredients = [...$('edRows').children].map(row => ({
@@ -637,13 +1057,20 @@
     })).filter(i => i.name && !isNaN(i.qty));
     const err = (msg) => { $('edError').textContent = msg; $('edError').classList.remove('hidden'); };
     if (!name) return err('Dai un nome alla ricetta.');
-    if (!ingredients.some(i => isFlour(i.name) && i.qty > 0)) return err('Serve almeno un ingrediente che si chiama "farina", con una quantità.');
+    if (!ingredients.some(i => isFlour(i.name) && i.qty > 0)) return err('Serve almeno un ingrediente che si chiama "farina" (o "semola"), con una quantità.');
+    const phases = [...$('edPhases').children].map(row => ({
+      name: row.querySelector('.name').value.trim(),
+      min: (parseNum(row.querySelector('.h').value) || 0) * 60 + (parseNum(row.querySelector('.m').value) || 0),
+    }));
+    if (phases.some(p => p.name && !(p.min > 0))) return err('Ogni fase ha bisogno di una durata.');
     const yeast = $('edPrefYeast').value.trim();
     const data = normalize({
       id: editingId || uid(), name, ingredients,
       madreHyd: $('edMadre').value,
       pref: { on: $('edPrefOn').checked, type: $('edPrefType').value, flourPct: $('edPrefFlour').value, hyd: $('edPrefHyd').value, yeast: yeast === '' ? null : yeast },
       notes: { lievitazione: $('edLiev').value.trim(), forno: $('edForno').value.trim(), procedimento: $('edProc').value.trim() },
+      phases,
+      bake: { temp: $('edTemp').value, min: $('edBakeMin').value, support: $('edSupport').value, steam: $('edSteam').checked },
     });
     if (editingId) recipes[recipes.findIndex(r => r.id === editingId)] = data;
     else recipes.push(data);
@@ -664,6 +1091,7 @@
     saveRecipes(); saveState(); renderAll();
   });
   $('edAdd').addEventListener('click', () => addEditorRow());
+  $('edPhaseAdd').addEventListener('click', () => addPhaseRow());
   $('edSave').addEventListener('click', saveEditor);
   $('edCancel').addEventListener('click', () => $('editor').classList.add('hidden'));
   $('edPrefOn').addEventListener('change', e => $('edPrefFields').classList.toggle('hidden', !e.target.checked));
@@ -683,8 +1111,10 @@
     if (r.ingredients.some(i => isMadre(i.name))) lines.push('Lievito madre idratato al ' + fmtPct(r.madreHyd) + '%');
     if (r.pref.on) lines.push(prefLabel(r.pref.type) + ': ' + fmtPct(r.pref.flourPct) + '% della farina, idratata al ' + fmtPct(r.pref.hyd) + '%' +
                               (r.pref.yeast === null ? ', con tutto il lievito' : ', lievito ' + fmtPct(r.pref.yeast) + '%'));
+    if (r.phases.length) lines.push('Fasi: ' + r.phases.map(p => p.name + ' ' + fmtDur(p.min)).join(' → '));
     if (r.notes.lievitazione) lines.push('Lievitazione: ' + r.notes.lievitazione);
-    if (r.notes.forno) lines.push('Forno: ' + r.notes.forno);
+    const bt = [bakeText(r.bake), r.notes.forno].filter(Boolean).join('. ');
+    if (bt) lines.push('Cottura: ' + bt);
     if (r.notes.procedimento) lines.push('', 'Procedimento:', r.notes.procedimento);
     const { id, ...data } = r;
     lines.push('', 'Per aggiungerla all\'app Baking Bread (https://joefunky.github.io/impasti/): copia tutto questo messaggio e incollalo in "Ricevi una ricetta".',
@@ -849,8 +1279,336 @@
   $('sheetLoad').addEventListener('click', loadSheet);
   $('sheetCopy').addEventListener('click', copyForSheet);
 
+  // ---------- pianificatore ----------
+  const pad = (n) => String(n).padStart(2, '0');
+  const toLocalInput = (ms) => { const d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const fromLocalInput = (s) => { const t = new Date(s).getTime(); return isFinite(t) ? t : NaN; };
+  const ceil15 = (ms) => Math.ceil(ms / 900000) * 900000;
+  function fmtWhen(ms, ref = Date.now()) {
+    const d = new Date(ms), r = new Date(ref);
+    const hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    const days = Math.round((new Date(d).setHours(0, 0, 0, 0) - new Date(r).setHours(0, 0, 0, 0)) / 86400000);
+    if (days === 0) return hm;
+    if (days === 1) return 'domani ' + hm;
+    return d.toLocaleDateString('it-IT', { weekday: 'short' }) + ' ' + hm;
+  }
+  const prepMin = (r) => r.phases.reduce((s, p) => s + p.min, 0);
+
+  // Orari di ogni fase. "end" = l'ora indicata è quando inforni.
+  function schedule(r, mode, at) {
+    let t = mode === 'end' ? at - prepMin(r) * 60000 : at;
+    const steps = r.phases.map(p => { const s = { name: p.name, min: p.min, at: t }; t += p.min * 60000; return s; });
+    const bakeAt = t;
+    if (r.bake.min) { steps.push({ name: 'Inforna' + (r.bake.temp ? ' a ' + r.bake.temp + ' °C' : ''), min: r.bake.min, at: t, bake: true }); t += r.bake.min * 60000; }
+    return { steps, bakeAt, end: t, final: r.bake.min ? 'Sforna' : 'Inforna' };
+  }
+
+  function defaultPlanTime(r) {
+    // "Comincio" = adesso; "Inforno" = il primo quarto d'ora utile.
+    if (state.planMode === 'start') return toLocalInput(Date.now());
+    return toLocalInput(ceil15(Date.now() + prepMin(r) * 60000));
+  }
+
+  function icsDate(ms) { return new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); }
+  function gcalLink(title, start, min) {
+    const p = new URLSearchParams({ action: 'TEMPLATE', text: title, dates: icsDate(start) + '/' + icsDate(start + Math.max(min, 5) * 60000), details: 'Da Baking Bread' });
+    return 'https://calendar.google.com/calendar/render?' + p.toString();
+  }
+
+  let planCache = null;
+  function renderPlan() {
+    const r = current();
+    const has = r.phases.length > 0;
+    $('planBody').classList.toggle('hidden', !has);
+    $('planEmpty').classList.toggle('hidden', has);
+    if (!has) { planCache = null; return; }
+    $('planMode').value = state.planMode || 'end';
+    let at = fromLocalInput($('planTime').value);
+    if (!isFinite(at)) { $('planTime').value = defaultPlanTime(r); at = fromLocalInput($('planTime').value); }
+    const s = schedule(r, state.planMode || 'end', at);
+    planCache = { recipe: r.name, ...s };
+    const list = $('planList');
+    list.replaceChildren();
+    const row = (ms, name, sub, cls, min) => {
+      const what = el('span', { className: 'what', textContent: name });
+      if (sub) what.append(' ', el('small', { textContent: sub }));
+      const li = el('li', { className: cls || '' }, el('span', { className: 'when', textContent: fmtWhen(ms) }), what);
+      const a = el('a', { className: 'cal', href: gcalLink('Baking Bread · ' + r.name + ': ' + name, ms, min || 5), target: '_blank', rel: 'noopener', textContent: '📅' });
+      a.setAttribute('aria-label', 'Aggiungi "' + name + '" a Google Calendar');
+      li.append(a);
+      list.append(li);
+    };
+    for (const st of s.steps) row(st.at, st.name, fmtDur(st.min), st.bake ? 'key' : '', st.min);
+    row(s.end, s.final, '', 'key', 5);
+    const late = s.steps[0].at < Date.now() - 60000;
+    $('planWarn').textContent = late ? 'Per essere pronto a quell\'ora avresti dovuto cominciare alle ' + fmtWhen(s.steps[0].at) + ': sposta l\'orario o accorcia le fasi.' : '';
+    $('planWarn').classList.toggle('hidden', !late);
+  }
+
+  $('planMode').addEventListener('change', e => {
+    state.planMode = e.target.value; saveState();
+    $('planTime').value = defaultPlanTime(current());
+    renderPlan();
+  });
+  $('planTime').addEventListener('input', renderPlan);
+
+  $('planIcs').addEventListener('click', () => {
+    if (!planCache) return;
+    const esc = (t) => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    const now = icsDate(Date.now());
+    const ev = (name, at, min, i) => [
+      'BEGIN:VEVENT', 'UID:' + at + '-' + i + '@bakingbread', 'DTSTAMP:' + now,
+      'DTSTART:' + icsDate(at), 'DTEND:' + icsDate(at + Math.max(min, 5) * 60000),
+      'SUMMARY:' + esc('Baking Bread · ' + planCache.recipe + ': ' + name),
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:PT0M', 'DESCRIPTION:' + esc(name), 'END:VALARM', 'END:VEVENT'];
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Baking Bread//IT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    planCache.steps.forEach((s, i) => lines.push(...ev(s.name, s.at, s.min, i)));
+    lines.push(...ev(planCache.final, planCache.end, 5, 'f'), 'END:VCALENDAR');
+    const a = el('a', { href: URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/calendar' })),
+                        download: 'baking-bread-' + planCache.recipe.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.ics' });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  });
+
+  // ---------- timer ----------
+  // Il piano avviato si salva, così riaprendo l'app il conto alla rovescia riprende.
+  let plan = store.get(LS_PLAN, null);
+  let audio = null, wake = null;
+
+  function beep() {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+      [0, 0.35, 0.7].forEach((d, i) => {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = i === 2 ? 1046 : 784;
+        g.gain.setValueAtTime(0.0001, audio.currentTime + d);
+        g.gain.exponentialRampToValueAtTime(0.4, audio.currentTime + d + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + d + 0.3);
+        o.connect(g).connect(audio.destination);
+        o.start(audio.currentTime + d); o.stop(audio.currentTime + d + 0.32);
+      });
+    } catch {}
+  }
+
+  function alarm(what) {
+    const body = 'Jesse, è ora di: ' + what;
+    beep();
+    try { navigator.vibrate?.([300, 150, 300, 150, 600]); } catch {}
+    const card = $('timerCard');
+    card.classList.remove('ring'); void card.offsetWidth; card.classList.add('ring');
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const opts = { body, icon: 'icon-192.png', tag: 'bb-timer', renotify: true, vibrate: [300, 150, 300] };
+      const fallback = () => { try { new Notification('Baking Bread', opts); } catch {} };
+      if (navigator.serviceWorker?.controller) navigator.serviceWorker.ready.then(reg => reg.showNotification('Baking Bread', opts)).catch(fallback);
+      else fallback();
+    }
+  }
+
+  // Indice della fase in corso: -1 = non ancora iniziato, steps.length = finito.
+  function phaseIndex(p, now) {
+    if (now >= p.end) return p.steps.length;
+    let i = -1;
+    p.steps.forEach((s, k) => { if (s.at <= now) i = k; });
+    return i;
+  }
+
+  function fmtLeft(ms) {
+    const s = Math.max(0, Math.round(ms / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    return (h ? h + ':' + pad(m) : m) + ':' + pad(sec);
+  }
+
+  function tick() {
+    const card = $('timerCard');
+    if (!plan) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    const now = Date.now();
+    const i = phaseIndex(plan, now);
+    // Suona al passaggio di fase, ma non per fasi passate da più di 10 minuti (app rimasta chiusa).
+    if (i > plan.lastIdx) {
+      const boundary = i >= plan.steps.length ? plan.end : plan.steps[i].at;
+      if (now - boundary < 600000) alarm(i >= plan.steps.length ? plan.final : plan.steps[i].name);
+      plan.lastIdx = i; store.set(LS_PLAN, plan);
+    }
+    $('timerRecipe').textContent = 'Timer · ' + plan.recipe;
+    const done = i >= plan.steps.length;
+    $('timerSkip').classList.toggle('hidden', done);
+    $('timerMore').classList.toggle('hidden', done);
+    $('timerStop').textContent = done ? 'Chiudi' : 'Ferma';
+    if (done) {
+      $('timerNow').textContent = plan.final + '! Ottimo lavoro, Heisenbread.';
+      $('timerLeft').textContent = '0:00';
+      $('timerNext').textContent = 'Finito alle ' + fmtWhen(plan.end) + '.';
+      return;
+    }
+    const nextAt = i + 1 < plan.steps.length ? plan.steps[i + 1].at : plan.end;
+    const nextName = i + 1 < plan.steps.length ? plan.steps[i + 1].name : plan.final;
+    if (i < 0) {
+      $('timerNow').textContent = 'Si comincia con: ' + plan.steps[0].name;
+      $('timerLeft').textContent = fmtLeft(plan.steps[0].at - now);
+      $('timerNext').textContent = 'alle ' + fmtWhen(plan.steps[0].at);
+    } else {
+      $('timerNow').textContent = 'Fase ' + (i + 1) + ' di ' + plan.steps.length + ': ' + plan.steps[i].name;
+      $('timerLeft').textContent = fmtLeft(nextAt - now);
+      $('timerNext').textContent = 'Poi: ' + nextName + ', alle ' + fmtWhen(nextAt);
+    }
+  }
+
+  // Sposta tutte le fasi future di "delta" millisecondi.
+  function shiftFrom(idx, delta) {
+    plan.steps.forEach((s, k) => { if (k >= idx) s.at += delta; });
+    plan.end += delta;
+    store.set(LS_PLAN, plan); tick();
+  }
+
+  $('planStart').addEventListener('click', () => {
+    if (!planCache) return;
+    if (plan && !confirm('C\'è già un timer avviato per "' + plan.recipe + '". Lo sostituisco?')) return;
+    beep(); // sblocca l'audio: i browser lo permettono solo dopo un tocco
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+    plan = { recipe: planCache.recipe, final: planCache.final, end: planCache.end,
+             steps: planCache.steps.map(s => ({ name: s.name, at: s.at })), lastIdx: -2 };
+    plan.lastIdx = phaseIndex(plan, Date.now());
+    store.set(LS_PLAN, plan);
+    tick();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  $('timerSkip').addEventListener('click', () => {
+    const i = phaseIndex(plan, Date.now());
+    const nextAt = i + 1 < plan.steps.length ? plan.steps[i + 1].at : plan.end;
+    plan.lastIdx = i + 1;
+    shiftFrom(i + 1, Date.now() - nextAt);
+  });
+  $('timerMore').addEventListener('click', () => shiftFrom(phaseIndex(plan, Date.now()) + 1, 15 * 60000));
+  $('timerStop').addEventListener('click', () => {
+    const done = phaseIndex(plan, Date.now()) >= plan.steps.length;
+    if (!done && !confirm('Fermare il timer?')) return;
+    plan = null; store.set(LS_PLAN, null); releaseWake(); $('wakeOn').checked = false; tick();
+  });
+
+  // Schermo acceso durante il timer (dove il browser lo permette).
+  async function requestWake() { try { wake = await navigator.wakeLock.request('screen'); } catch { wake = null; } }
+  function releaseWake() { try { wake?.release(); } catch {} wake = null; }
+  if ('wakeLock' in navigator) {
+    $('wakeWrap').classList.remove('hidden');
+    $('wakeOn').addEventListener('change', e => e.target.checked ? requestWake() : releaseWake());
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { tick(); if ($('wakeOn').checked && plan) requestWake(); }
+  });
+  setInterval(tick, 1000);
+
+  // ---------- ricettario ----------
+  function renderBook() {
+    $('bookList').replaceChildren(...BOOK.map(b => {
+      const btn = el('button', { textContent: 'Aggiungi' });
+      btn.addEventListener('click', () => {
+        const exists = recipes.find(x => x.name.toLowerCase() === b.name.toLowerCase());
+        if (exists) { state.recipeId = exists.id; $('bookMsg').textContent = 'Hai già "' + b.name + '": l\'ho scelta sopra.'; }
+        else {
+          const r = normalize({ ...JSON.parse(JSON.stringify(b.r)), name: b.name, id: uid() });
+          recipes.push(r); state.recipeId = r.id; saveRecipes();
+          $('bookMsg').textContent = 'Aggiunta: "' + b.name + '".';
+        }
+        if (state.base.startsWith('ing:')) { state.base = 'flour'; state.value = 1000; }
+        $('planTime').value = '';
+        saveState(); renderAll();
+        $('calc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return el('div', { className: 'list-item' }, el('div', {}, el('p', {}, el('strong', { textContent: b.name })), el('p', { className: 'sub', textContent: b.desc })), btn);
+    }));
+  }
+
+  // ---------- farine ----------
+  function renderFlours(sel = 2) {
+    $('flourTable').replaceChildren(...FLOURS.map((f, i) => {
+      const b = el('button', { className: 'ptile' }, el('small', { textContent: f.top }), f.sym, el('i', { textContent: f.w === '—' ? '' : f.w.split('–')[0] }));
+      b.setAttribute('aria-label', f.name);
+      b.setAttribute('aria-pressed', String(i === sel));
+      b.addEventListener('click', () => renderFlours(i));
+      return b;
+    }));
+    const f = FLOURS[sel];
+    const dl = el('dl');
+    for (const [k, v] of [['Forza (W)', f.w === '—' ? 'di solito non indicata' : f.w], ['Proteine', f.prot], ['Acqua', f.hyd + ' della farina'], ['Lievitazione', f.liev]])
+      dl.append(el('dt', { textContent: k }), el('dd', { textContent: v }));
+    $('flourCard').replaceChildren(el('h3', { textContent: f.name, style: 'margin-top:0' }), dl, el('p', { textContent: f.use }));
+  }
+  function renderMix() {
+    const w1 = parseNum($('mixW1').value), w2 = parseNum($('mixW2').value), p = parseNum($('mixPct').value);
+    if (![w1, w2, p].every(isFinite)) { $('mixOut').textContent = ''; return; }
+    const w = w1 * p / 100 + w2 * (100 - p) / 100;
+    $('mixOut').replaceChildren('W del mix circa ', el('b', { textContent: Math.round(w / 10) * 10 }));
+  }
+  for (const id of ['mixW1', 'mixW2', 'mixPct']) $(id).addEventListener('input', renderMix);
+
+  // ---------- temperatura dell'acqua ----------
+  // Acqua = (temperatura voluta × numero di fattori) − stanza − farina − [prefermento] − riscaldamento dell'impasto.
+  function renderDDT() {
+    const goal = parseNum($('ddtGoal').value), room = parseNum($('ddtRoom').value), flour = parseNum($('ddtFlour').value);
+    const mix = Number($('ddtMix').value), pre = parseNum($('ddtPre').value);
+    const out = $('ddtOut'), note = $('ddtNote');
+    if (![goal, room, flour].every(isFinite)) { out.textContent = ''; note.textContent = ''; return; }
+    const water = isFinite(pre) ? goal * 4 - room - flour - pre - mix : goal * 3 - room - flour - mix;
+    out.replaceChildren('Acqua a ', el('b', { textContent: fmtNum(Math.round(water)) + ' °C' }));
+    if (water < 2) note.textContent = 'Più fredda di così non si può: usa acqua di frigo con qualche cubetto di ghiaccio (pesato insieme all\'acqua) e impasta un po\' meno a lungo.';
+    else if (water > 38) note.textContent = 'Sopra i 38 °C rischi di stressare il lievito: usa acqua a 35 °C e allunga un po\' i tempi.';
+    else note.textContent = 'Per quasi tutti gli impasti va bene un impasto finito a 24–26 °C.';
+  }
+  for (const id of ['ddtGoal', 'ddtRoom', 'ddtFlour', 'ddtPre']) $(id).addEventListener('input', renderDDT);
+  $('ddtMix').addEventListener('change', renderDDT);
+
+  // ---------- consigli ----------
+  $('faqList').replaceChildren(...FAQ.map(([q, a]) => el('details', {}, el('summary', { textContent: q }), el('p', { textContent: a }))));
+
+  // ---------- diario ----------
+  let diary = store.get(LS_DIARY, []);
+  if (!Array.isArray(diary)) diary = [];
+  const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const STARS = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+  function renderDiary() {
+    const list = $('diaryList');
+    if (!diary.length) { list.replaceChildren(el('p', { className: 'note', textContent: 'Nessuna infornata segnata. Il laboratorio è pulito.' })); return; }
+    list.replaceChildren(...diary.map(d => {
+      const x = el('button', { className: 'icon', textContent: '×', title: 'Togli' });
+      x.setAttribute('aria-label', 'Togli questa infornata');
+      x.addEventListener('click', () => {
+        if (!confirm('Togliere questa infornata dal diario?')) return;
+        diary = diary.filter(e => e.id !== d.id); store.set(LS_DIARY, diary); renderDiary();
+      });
+      const date = new Date(d.date + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+      const body = el('div', {},
+        el('p', {}, el('strong', { textContent: d.recipe }), ' · ' + date + ' · ', el('span', { textContent: STARS(d.rating), title: d.rating + ' su 5' })),
+        el('p', { className: 'sub', textContent: d.summary }));
+      if (d.note) body.append(el('p', { textContent: d.note, style: 'white-space:pre-wrap' }));
+      const item = el('div', { className: 'list-item' }, body, x);
+      item.style.alignItems = 'flex-start';
+      return item;
+    }));
+  }
+  $('diaryDate').value = today();
+  $('diaryAdd').addEventListener('click', () => {
+    const r = current(), out = compute(r);
+    const summary = [out.rows ? 'Farina ' + fmtNum(roundG(out.flour)) + ' g' : '', $('info').textContent].filter(Boolean).join(' · ');
+    diary.unshift({ id: uid(), date: $('diaryDate').value || today(), recipe: r.name, rating: Number($('diaryRate').value),
+                    summary: str(summary, 300), note: str($('diaryNote').value.trim(), 2000) });
+    diary = diary.slice(0, 300);
+    store.set(LS_DIARY, diary);
+    $('diaryNote').value = '';
+    renderDiary();
+  });
+
+  $('quote').textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+
   renderAll();
   renderConv();
+  renderBook();
+  renderFlours();
+  renderMix();
+  renderDDT();
+  renderDiary();
+  tick();
 
   // App installabile: il service worker funziona solo quando la pagina è servita da un sito (https),
   // non quando apri il file direttamente.
