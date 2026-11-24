@@ -144,6 +144,34 @@
   .list-item p { margin: 2px 0; font-size: .9rem; }
   .list-item .sub { margin: 0; }
   a { color: var(--accent); }
+  /* Barra delle tab in basso, come in un'app */
+  main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    display: flex; justify-content: center;
+    background: var(--surface); border-top: 1px solid var(--line);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 10px rgba(0,0,0,.06);
+  }
+  .tabbar button {
+    flex: 1; max-width: 112px; min-width: 0; border: 0; background: transparent; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 2px; min-height: 54px; font-size: .7rem; color: var(--muted);
+  }
+  .tabbar .ti { font-size: 1.3rem; line-height: 1; filter: grayscale(.6); }
+  .tabbar button[aria-selected="true"] { color: var(--accent); background: var(--soft); font-weight: 650; }
+  .tabbar button[aria-selected="true"] .ti { filter: none; }
+  .tab-intro { margin: 0 0 12px; font-style: italic; }
+  /* Passo passo: testo grande, da leggere con le mani in pasta */
+  .step-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .step-bar { height: 6px; background: var(--soft); border-radius: 3px; margin: 10px 0 4px; overflow: hidden; }
+  .step-bar span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+  .step-title { font-size: 1.3rem; margin: 12px 0 2px; }
+  .step-body { font-size: 1.05rem; }
+  .step-body p { margin: 8px 0; }
+  .step-body .ready { background: var(--soft); border-radius: 10px; padding: 10px 12px; font-size: .95rem; }
+  .step-body table { margin: 6px 0; }
+  .step-actions button { flex: 1; min-height: 52px; font-size: 1rem; }
   .result-big { font-size: 1.1rem; margin: 6px 0; }
   .result-big b { font-size: 1.5rem; }
 </style>
@@ -170,6 +198,7 @@
     </div>
   </section>
 
+  <div class="tab-panel" id="tab-lab" role="tabpanel" aria-labelledby="tabbtn-lab">
   <!-- Calcolatore -->
   <section class="card" id="calc">
     <div class="field">
@@ -194,6 +223,39 @@
       <div>
         <label for="pieceWeight">Peso per pezzo (g)</label>
         <input id="pieceWeight" type="number" inputmode="decimal" min="0" step="any">
+      </div>
+    </div>
+    <div class="hidden" id="trayWrap">
+      <div class="row field">
+        <div>
+          <label for="trayShape">Teglia</label>
+          <select id="trayShape">
+            <option value="rect">Rettangolare</option>
+            <option value="round">Tonda</option>
+          </select>
+        </div>
+        <div>
+          <label for="trays">Quante</label>
+          <input id="trays" type="number" inputmode="numeric" min="1" step="1">
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <label for="trayA" id="trayALabel">Lato (cm)</label>
+          <input id="trayA" type="number" inputmode="decimal" min="0" step="any">
+        </div>
+        <div id="trayBWrap">
+          <label for="trayB">Altro lato (cm)</label>
+          <input id="trayB" type="number" inputmode="decimal" min="0" step="any">
+        </div>
+      </div>
+      <div class="field">
+        <label for="trayG">Spessore</label>
+        <select id="trayG">
+          <option value="0.45">Sottile (0,45 g per cm²)</option>
+          <option value="0.55">Media (0,55 g per cm²): pizza in teglia</option>
+          <option value="0.7">Alta (0,7 g per cm²): focaccia soffice</option>
+        </select>
       </div>
     </div>
     <div class="row field">
@@ -342,9 +404,84 @@
     </div>
   </section>
 
+  <!-- Ricevi ricetta -->
+  <section class="card">
+    <details id="receiveBox">
+      <summary>Ricevi una ricetta</summary>
+      <label for="receiveText">Incolla qui tutto il messaggio che ti hanno mandato</label>
+      <textarea id="receiveText" rows="5"></textarea>
+      <div class="actions">
+        <button id="receiveAdd" class="primary">Aggiungi ricetta</button>
+      </div>
+      <p class="note" id="receiveMsg"></p>
+    </details>
+  </section>
+
+  <!-- Google Sheet -->
+  <section class="card">
+    <details id="sheetBox">
+      <summary>Ricette da Google Sheet</summary>
+      <p class="note" style="margin-top:0">Il foglio ha tre colonne: <code>Ricetta</code>, <code>Ingrediente</code>, <code>Quantità</code>. Una riga per ingrediente. La quantità può essere in grammi o in percentuale. L'ingrediente che contiene la parola "farina" fa da riferimento.</p>
+      <ol>
+        <li>Nel foglio: <em>File → Condividi → Pubblica sul web</em>, scegli il foglio e il formato <em>CSV</em>.</li>
+        <li>Incolla qui il link che ti dà.</li>
+      </ol>
+      <div class="field">
+        <label for="sheetUrl">Link del foglio pubblicato</label>
+        <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+      </div>
+      <div class="actions">
+        <button id="sheetLoad" class="primary">Carica ricette</button>
+        <button id="sheetCopy">Copia le mie ricette per il foglio</button>
+      </div>
+      <p class="note" id="sheetMsg"></p>
+    </details>
+  </section>
+
+  <!-- Salva e ripristina -->
+  <section class="card">
+    <details id="backupBox">
+      <summary>I tuoi dati: salva e ripristina</summary>
+      <p class="note" style="margin-top:0">Ricette, diario e lievito madre stanno solo in questo telefono. Ogni tanto salvali in un file: se cambi telefono o cancelli i dati di Chrome, li ricarichi da lì. Nessuna prova, nessun processo.</p>
+      <div class="actions">
+        <button id="backupSave" class="primary">Salva in un file</button>
+        <button id="backupLoad">Ripristina da un file</button>
+        <input id="backupFile" type="file" accept=".json,application/json" class="hidden">
+      </div>
+      <p class="note" id="backupMsg"></p>
+    </details>
+  </section>
+  </div>
+
+  <div class="tab-panel hidden" id="tab-tempi" role="tabpanel" aria-labelledby="tabbtn-tempi">
+  <!-- Ricetta su cui lavorano passo passo e pianificatore -->
+  <div class="field">
+    <label for="recipe2">Ricetta</label>
+    <select id="recipe2"></select>
+  </div>
+
+  <!-- Passo passo -->
+  <section class="card step-card" id="stepCard">
+    <div class="step-top">
+      <h2 style="margin:0">Passo passo</h2>
+      <span class="sub" id="stepCount"></span>
+    </div>
+    <div class="step-bar" aria-hidden="true"><span id="stepProgress"></span></div>
+    <h3 class="step-title" id="stepTitle"></h3>
+    <p class="sub" id="stepDur"></p>
+    <div class="step-body" id="stepBody"></div>
+    <div class="actions step-actions">
+      <button id="stepPrev">← Indietro</button>
+      <button id="stepNext" class="primary">Avanti →</button>
+    </div>
+    <div class="actions">
+      <button id="stepTimer">⏱ Avvia il timer da questo passo</button>
+    </div>
+  </section>
+
   <!-- Pianificatore -->
   <section class="card">
-    <details id="planBox">
+    <details id="planBox" open>
       <summary>Pianifica l'infornata</summary>
       <p class="sub" style="margin-bottom:10px">Come Gus: tutto calcolato al minuto. Usa le fasi della ricetta scelta sopra.</p>
       <div id="planBody">
@@ -372,7 +509,9 @@
       <p class="note hidden" id="planEmpty">Questa ricetta non ha ancora le fasi. Aggiungile da <em>Modifica ricetta → Fasi della lavorazione</em>.</p>
     </details>
   </section>
+  </div>
 
+  <div class="tab-panel hidden" id="tab-lievito" role="tabpanel" aria-labelledby="tabbtn-lievito">
   <!-- Quanto lievito -->
   <section class="card">
     <details id="yeastBox">
@@ -477,40 +616,30 @@
     </details>
   </section>
 
-  <!-- Ricettario -->
+  <!-- Converti lievito -->
   <section class="card">
-    <details id="bookBox">
-      <summary>Ricettario Los Panes Hermanos</summary>
-      <p class="sub" style="margin-bottom:6px">Ricette classiche da cui partire, con fasi e cottura già pronte. Sono un punto di partenza: adattale alla tua farina e al tuo forno.</p>
-      <div id="bookList"></div>
-      <p class="note" id="bookMsg"></p>
-    </details>
-  </section>
-
-  <!-- Farine -->
-  <section class="card">
-    <details id="flourBox">
-      <summary>Tavola periodica delle farine</summary>
-      <p class="sub" style="margin-bottom:10px">In alto a sinistra le proteine, in basso la forza (W). Tocca un elemento.</p>
-      <div class="ptable" id="flourTable"></div>
-      <div class="fcard" id="flourCard"></div>
-      <p class="note">Valori tipici: quelli veri sono scritti sul sacco o sul sito del mulino, e cambiano da una marca all'altra.</p>
-      <h3>Mix di due farine</h3>
+    <details id="convBox">
+      <summary>Converti lievito</summary>
       <div class="row field">
         <div>
-          <label for="mixW1">W prima farina</label>
-          <input id="mixW1" type="number" inputmode="numeric" min="0" value="380">
+          <label for="convQty">Quantità (g)</label>
+          <input id="convQty" type="number" inputmode="decimal" min="0" step="any" value="10">
         </div>
         <div>
-          <label for="mixW2">W seconda</label>
-          <input id="mixW2" type="number" inputmode="numeric" min="0" value="220">
-        </div>
-        <div>
-          <label for="mixPct">% della prima</label>
-          <input id="mixPct" type="number" inputmode="numeric" min="0" max="100" value="30">
+          <label for="convFrom">Di</label>
+          <select id="convFrom">
+            <option value="fresco">Lievito di birra fresco</option>
+            <option value="secco">Lievito di birra secco</option>
+            <option value="madre">Lievito madre</option>
+          </select>
         </div>
       </div>
-      <p class="result-big" id="mixOut"></p>
+      <div class="field">
+        <label for="convHyd">Idratazione del lievito madre (%)</label>
+        <input id="convHyd" type="number" inputmode="decimal" min="0" step="any" value="50">
+      </div>
+      <div id="convOut"></div>
+      <p class="note">Valori indicativi: 1 g di secco vale circa 3 g di fresco, 100 g di lievito madre circa 10 g di fresco. Cambiando lievito cambiano anche i tempi di lievitazione.</p>
     </details>
   </section>
 
@@ -552,44 +681,44 @@
       <p class="note">Il riscaldamento dovuto all'impasto è indicativo. Misura l'impasto finito con un termometro: se esce 2 °C più caldo del voluto, la prossima volta usa l'acqua 2 °C più fredda.</p>
     </details>
   </section>
+  </div>
 
-  <!-- Ricevi ricetta -->
+  <div class="tab-panel hidden" id="tab-lezioni" role="tabpanel" aria-labelledby="tabbtn-lezioni">
+  <p class="sub tab-intro">Mr. White insegnava chimica. Ora insegna pane.</p>
+  <!-- Ricettario -->
   <section class="card">
-    <details id="receiveBox">
-      <summary>Ricevi una ricetta</summary>
-      <label for="receiveText">Incolla qui tutto il messaggio che ti hanno mandato</label>
-      <textarea id="receiveText" rows="5"></textarea>
-      <div class="actions">
-        <button id="receiveAdd" class="primary">Aggiungi ricetta</button>
-      </div>
-      <p class="note" id="receiveMsg"></p>
+    <details id="bookBox">
+      <summary>Ricettario Los Panes Hermanos</summary>
+      <p class="sub" style="margin-bottom:6px">Ricette classiche da cui partire, con fasi e cottura già pronte. Sono un punto di partenza: adattale alla tua farina e al tuo forno.</p>
+      <div id="bookList"></div>
+      <p class="note" id="bookMsg"></p>
     </details>
   </section>
 
-  <!-- Converti lievito -->
+  <!-- Farine -->
   <section class="card">
-    <details id="convBox">
-      <summary>Converti lievito</summary>
+    <details id="flourBox">
+      <summary>Tavola periodica delle farine</summary>
+      <p class="sub" style="margin-bottom:10px">In alto a sinistra le proteine, in basso la forza (W). Tocca un elemento.</p>
+      <div class="ptable" id="flourTable"></div>
+      <div class="fcard" id="flourCard"></div>
+      <p class="note">Valori tipici: quelli veri sono scritti sul sacco o sul sito del mulino, e cambiano da una marca all'altra.</p>
+      <h3>Mix di due farine</h3>
       <div class="row field">
         <div>
-          <label for="convQty">Quantità (g)</label>
-          <input id="convQty" type="number" inputmode="decimal" min="0" step="any" value="10">
+          <label for="mixW1">W prima farina</label>
+          <input id="mixW1" type="number" inputmode="numeric" min="0" value="380">
         </div>
         <div>
-          <label for="convFrom">Di</label>
-          <select id="convFrom">
-            <option value="fresco">Lievito di birra fresco</option>
-            <option value="secco">Lievito di birra secco</option>
-            <option value="madre">Lievito madre</option>
-          </select>
+          <label for="mixW2">W seconda</label>
+          <input id="mixW2" type="number" inputmode="numeric" min="0" value="220">
+        </div>
+        <div>
+          <label for="mixPct">% della prima</label>
+          <input id="mixPct" type="number" inputmode="numeric" min="0" max="100" value="30">
         </div>
       </div>
-      <div class="field">
-        <label for="convHyd">Idratazione del lievito madre (%)</label>
-        <input id="convHyd" type="number" inputmode="decimal" min="0" step="any" value="50">
-      </div>
-      <div id="convOut"></div>
-      <p class="note">Valori indicativi: 1 g di secco vale circa 3 g di fresco, 100 g di lievito madre circa 10 g di fresco. Cambiando lievito cambiano anche i tempi di lievitazione.</p>
+      <p class="result-big" id="mixOut"></p>
     </details>
   </section>
 
@@ -601,10 +730,12 @@
       <div class="faq" id="faqList"></div>
     </details>
   </section>
+  </div>
 
+  <div class="tab-panel hidden" id="tab-diario" role="tabpanel" aria-labelledby="tabbtn-diario">
   <!-- Diario -->
   <section class="card">
-    <details id="diaryBox">
+    <details id="diaryBox" open>
       <summary>Diario del laboratorio</summary>
       <p class="sub" style="margin-bottom:10px">Segna com'è andata: si salvano anche la ricetta e le dosi che hai sopra.</p>
       <div class="row field">
@@ -633,33 +764,21 @@
       <div id="diaryList" style="margin-top:12px"></div>
     </details>
   </section>
-
-  <!-- Google Sheet -->
-  <section class="card">
-    <details id="sheetBox">
-      <summary>Ricette da Google Sheet</summary>
-      <p class="note" style="margin-top:0">Il foglio ha tre colonne: <code>Ricetta</code>, <code>Ingrediente</code>, <code>Quantità</code>. Una riga per ingrediente. La quantità può essere in grammi o in percentuale. L'ingrediente che contiene la parola "farina" fa da riferimento.</p>
-      <ol>
-        <li>Nel foglio: <em>File → Condividi → Pubblica sul web</em>, scegli il foglio e il formato <em>CSV</em>.</li>
-        <li>Incolla qui il link che ti dà.</li>
-      </ol>
-      <div class="field">
-        <label for="sheetUrl">Link del foglio pubblicato</label>
-        <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
-      </div>
-      <div class="actions">
-        <button id="sheetLoad" class="primary">Carica ricette</button>
-        <button id="sheetCopy">Copia le mie ricette per il foglio</button>
-      </div>
-      <p class="note" id="sheetMsg"></p>
-    </details>
-  </section>
+  </div>
 
   <footer>
     <p>Hai sbagliato il sale? <strong>Better Call Sale</strong> ⚖️</p>
     <p id="quote">Formula approvata da Heisenbread. Purezza della farina: 99,1%.</p>
   </footer>
 </main>
+
+<nav class="tabbar" role="tablist" aria-label="Sezioni">
+  <button role="tab" id="tabbtn-lab" data-tab="lab" aria-controls="tab-lab"><span class="ti" aria-hidden="true">🧪</span>Laboratorio</button>
+  <button role="tab" id="tabbtn-tempi" data-tab="tempi" aria-controls="tab-tempi"><span class="ti" aria-hidden="true">⏱️</span>Tempi</button>
+  <button role="tab" id="tabbtn-lievito" data-tab="lievito" aria-controls="tab-lievito"><span class="ti" aria-hidden="true">🦠</span>Lievito</button>
+  <button role="tab" id="tabbtn-lezioni" data-tab="lezioni" aria-controls="tab-lezioni"><span class="ti" aria-hidden="true">📚</span>Lezioni</button>
+  <button role="tab" id="tabbtn-diario" data-tab="diario" aria-controls="tab-diario"><span class="ti" aria-hidden="true">📓</span>Diario</button>
+</nav>
 
 <script>
 (() => {
@@ -882,7 +1001,8 @@
     return normalize(raw);
   });
   if (!recipes.length) recipes = DEFAULT_RECIPES.map(normalize);
-  let state = Object.assign({ recipeId: recipes[0].id, base: 'flour', value: 3200, pieces: 4, pieceWeight: 500, round: 0, margin: 0 },
+  let state = Object.assign({ recipeId: recipes[0].id, base: 'flour', value: 3200, pieces: 4, pieceWeight: 500, round: 0, margin: 0,
+                              trayShape: 'rect', trays: 1, trayA: 30, trayB: 40, trayG: 0.55, tab: 'lab', step: 0 },
                             store.get(LS_STATE, {}));
   let editingId = null; // null = nuova ricetta
 
@@ -909,6 +1029,23 @@
     return recipe.ingredients.map(i => ({ name: i.name, pct: i.qty / flourQty * 100 }));
   }
 
+  function dilutionText(row) {
+    if (!isYeast(row.name) || !(row.g >= 0.02) || row.g >= 3) return null;
+    const d = row.g >= 0.5 ? 10 : row.g >= 0.1 ? 50 : 200;
+    const y = d === 10 ? 5 : 1;
+    const sol = row.g * d;
+    return fmtNum(roundG(row.g)) + ' g di ' + row.name.toLowerCase() + ' sono difficili da pesare con una bilancia da cucina. ' +
+      'Fai come in laboratorio: sciogli ' + y + ' g di lievito in ' + (y * d - y) + ' g d\'acqua, mescola bene e usane ' + fmtNum(Math.round(sol)) + ' g. ' +
+      'Togli ' + fmtNum(Math.round(sol - row.g)) + ' g dall\'acqua della ricetta.';
+  }
+
+  // Grammi di impasto per le teglie: superficie × grammi per cm².
+  function trayDough() {
+    const a = Number(state.trayA) || 0, b = Number(state.trayB) || 0;
+    const area = state.trayShape === 'round' ? Math.PI * (a / 2) ** 2 : a * b;
+    return area * (Number(state.trayG) || 0.55) * Math.max(1, Math.round(Number(state.trays) || 1));
+  }
+
   function compute(recipe) {
     const pcts = percentages(recipe);
     if (!pcts) return { error: 'Senza farina non c\'è Heisenbread: aggiungi un ingrediente che si chiama "farina" (o "semola").' };
@@ -917,6 +1054,7 @@
     let flour;
     if (state.base === 'total') flour = state.value * margin * 100 / sumPct;
     else if (state.base === 'pieces') flour = state.pieces * state.pieceWeight * margin * 100 / sumPct;
+    else if (state.base === 'tray') flour = trayDough() * margin * 100 / sumPct;
     else if (state.base === 'flour') flour = state.value;
     else {
       const p = pcts[Number(state.base.slice(4))]?.pct;
@@ -954,9 +1092,12 @@
 
   // ---------- calcolatore ----------
   function renderRecipeSelect() {
-    $('recipe').replaceChildren(...recipes.map(r => new Option(r.name, r.id)));
     if (!recipes.some(r => r.id === state.recipeId)) state.recipeId = recipes[0].id;
-    $('recipe').value = state.recipeId;
+    // Lo stesso elenco sta nel Laboratorio e in Tempi.
+    for (const id of ['recipe', 'recipe2']) {
+      $(id).replaceChildren(...recipes.map(r => new Option(r.name, r.id)));
+      $(id).value = state.recipeId;
+    }
   }
 
   function renderBaseSelect() {
@@ -964,21 +1105,30 @@
     const flours = r.ingredients.filter(x => isFlour(x.name)).length;
     const opts = [new Option('Farina totale', 'flour')];
     r.ingredients.forEach((ing, i) => { if (!isFlour(ing.name) || flours > 1) opts.push(new Option(ing.name, 'ing:' + i)); });
-    opts.push(new Option('Peso totale impasto', 'total'), new Option('Numero di pezzi', 'pieces'));
+    opts.push(new Option('Peso totale impasto', 'total'), new Option('Numero di pezzi', 'pieces'), new Option('Misura della teglia', 'tray'));
     $('base').replaceChildren(...opts);
     if (!opts.some(o => o.value === state.base)) state.base = 'flour';
     $('base').value = state.base;
   }
 
   function renderInputs() {
-    const pieces = state.base === 'pieces';
-    $('valueWrap').classList.toggle('hidden', pieces);
+    const pieces = state.base === 'pieces', tray = state.base === 'tray';
+    $('valueWrap').classList.toggle('hidden', pieces || tray);
     $('piecesWrap').classList.toggle('hidden', !pieces);
+    $('trayWrap').classList.toggle('hidden', !tray);
     // Lo scarto ha senso solo quando parti dal peso finale che vuoi ottenere.
-    $('marginWrap').classList.toggle('hidden', !(pieces || state.base === 'total'));
+    $('marginWrap').classList.toggle('hidden', !(pieces || tray || state.base === 'total'));
     $('value').value = state.value;
     $('pieces').value = state.pieces;
     $('pieceWeight').value = state.pieceWeight;
+    $('trayShape').value = state.trayShape;
+    $('trays').value = state.trays;
+    $('trayA').value = state.trayA;
+    $('trayB').value = state.trayB;
+    $('trayG').value = String(state.trayG);
+    const round = state.trayShape === 'round';
+    $('trayBWrap').classList.toggle('hidden', round);
+    $('trayALabel').textContent = round ? 'Diametro (cm)' : 'Lato (cm)';
     $('rounding').value = String(state.round || 0);
     $('margin').value = state.margin || '';
   }
@@ -1030,20 +1180,18 @@
       }
     }
     if (state.base === 'pieces') info.push(state.pieces + ' pezzi da ' + fmtNum(state.pieceWeight) + ' g');
-    if ((state.base === 'pieces' || state.base === 'total') && state.margin > 0) info.push('scarto +' + fmtPct(state.margin) + '% incluso');
+    if (state.base === 'tray') {
+      const per = trayDough() / (state.trays || 1);
+      const size = state.trayShape === 'round' ? 'Ø ' + fmtNum(state.trayA) + ' cm' : fmtNum(state.trayA) + '×' + fmtNum(state.trayB) + ' cm';
+      info.push((state.trays > 1 ? state.trays + ' teglie ' : 'teglia ') + size + ': ' + fmtNum(Math.round(per)) + ' g di impasto' + (state.trays > 1 ? ' ciascuna' : ''));
+    }
+    if (['pieces', 'total', 'tray'].includes(state.base) && state.margin > 0) info.push('scarto +' + fmtPct(state.margin) + '% incluso');
     $('info').textContent = info.join(' · ');
 
     // Lievito troppo poco per una bilancia da cucina (precisione 1 g): si scioglie in acqua e se ne pesa una parte.
     for (const row of out.rows) {
-      if (!isYeast(row.name) || !(row.g >= 0.02) || row.g >= 3) continue;
-      const d = row.g >= 0.5 ? 10 : row.g >= 0.1 ? 50 : 200;
-      const y = d === 10 ? 5 : 1;
-      const sol = row.g * d;
-      warn.append(el('p', { className: 'note' },
-        el('strong', { textContent: 'Troppo poco da pesare? ' }),
-        fmtNum(roundG(row.g)) + ' g di ' + row.name.toLowerCase() + ' sono difficili da pesare con una bilancia da cucina. ' +
-        'Fai come in laboratorio: sciogli ' + y + ' g di lievito in ' + (y * d - y) + ' g d\'acqua, mescola bene e usane ' + fmtNum(Math.round(sol)) + ' g. ' +
-        'Togli ' + fmtNum(Math.round(sol - row.g)) + ' g dall\'acqua della ricetta.'));
+      const t = dilutionText(row);
+      if (t) warn.append(el('p', { className: 'note' }, el('strong', { textContent: 'Troppo poco da pesare? ' }), t));
     }
 
     const sp = splitPref(r, out);
@@ -1085,18 +1233,22 @@
     renderInputs();
     renderResult();
     renderPlan();
+    renderSteps();
     $('btnDelete').disabled = recipes.length <= 1;
   }
 
   const round1 = (x) => Math.round(x * 10) / 10;
-  $('recipe').addEventListener('change', e => {
-    state.recipeId = e.target.value;
+  function changeRecipe(id) {
+    state.recipeId = id;
     // Un ingrediente di un'altra ricetta può non esistere qui: si riparte dalla farina.
     if (state.base.startsWith('ing:')) { state.base = 'flour'; state.value = 1000; }
     $('shareBox').classList.add('hidden');
     $('planTime').value = ''; // ogni ricetta ha durate diverse: si riparte dall'orario proposto
+    state.step = 0;
     saveState(); renderAll();
-  });
+  }
+  $('recipe').addEventListener('change', e => changeRecipe(e.target.value));
+  $('recipe2').addEventListener('change', e => changeRecipe(e.target.value));
   $('base').addEventListener('change', e => {
     // Cambiando punto di partenza, la quantità attuale di quella voce diventa il nuovo valore.
     const out = compute(current());
@@ -1108,7 +1260,9 @@
     }
     state.base = b; saveState(); renderInputs(); renderResult();
   });
-  for (const key of ['value', 'pieces', 'pieceWeight', 'margin']) {
+  $('trayShape').addEventListener('change', e => { state.trayShape = e.target.value; saveState(); renderInputs(); renderResult(); });
+  $('trayG').addEventListener('change', e => { state.trayG = Number(e.target.value); saveState(); renderResult(); });
+  for (const key of ['value', 'pieces', 'pieceWeight', 'margin', 'trays', 'trayA', 'trayB']) {
     $(key).addEventListener('input', e => { const n = parseNum(e.target.value); state[key] = isNaN(n) ? 0 : n; saveState(); renderResult(); });
   }
   $('rounding').addEventListener('change', e => { state.round = Number(e.target.value); saveState(); renderResult(); });
@@ -1197,7 +1351,7 @@
     saveRecipes(); saveState();
     $('editor').classList.add('hidden');
     renderAll();
-    $('calc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    goCalc();
   }
 
   $('btnEdit').addEventListener('click', () => openEditor(current()));
@@ -1281,7 +1435,7 @@
     saveRecipes(); saveState(); renderAll();
     $('receiveText').value = '';
     msg.textContent = 'Aggiunta: "' + r.name + '".';
-    $('calc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    goCalc();
   });
 
   // ---------- converti lievito ----------
@@ -1581,18 +1735,19 @@
     store.set(LS_PLAN, plan); tick();
   }
 
-  $('planStart').addEventListener('click', () => {
-    if (!planCache) return;
+  function startPlan(c) {
+    if (!c || !c.steps.length) return;
     if (plan && !confirm('C\'è già un timer avviato per "' + plan.recipe + '". Lo sostituisco?')) return;
     beep(); // sblocca l'audio: i browser lo permettono solo dopo un tocco
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
-    plan = { recipe: planCache.recipe, final: planCache.final, end: planCache.end,
-             steps: planCache.steps.map(s => ({ name: s.name, at: s.at })), lastIdx: -2 };
+    plan = { recipe: c.recipe, final: c.final, end: c.end,
+             steps: c.steps.map(s => ({ name: s.name, at: s.at })), lastIdx: -2 };
     plan.lastIdx = phaseIndex(plan, Date.now());
     store.set(LS_PLAN, plan);
     tick();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
+  }
+  $('planStart').addEventListener('click', () => startPlan(planCache));
   $('timerSkip').addEventListener('click', () => {
     const i = phaseIndex(plan, Date.now());
     const nextAt = i + 1 < plan.steps.length ? plan.steps[i + 1].at : plan.end;
@@ -1787,7 +1942,7 @@
         if (state.base.startsWith('ing:')) { state.base = 'flour'; state.value = 1000; }
         $('planTime').value = '';
         saveState(); renderAll();
-        $('calc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        goCalc();
       });
       return el('div', { className: 'list-item' }, el('div', {}, el('p', {}, el('strong', { textContent: b.name })), el('p', { className: 'sub', textContent: b.desc })), btn);
     }));
@@ -1872,10 +2027,194 @@
     renderDiary();
   });
 
+  // ---------- tab ----------
+  function showTab(t, scroll = true) {
+    if (!$('tab-' + t)) t = 'lab';
+    state.tab = t; saveState();
+    for (const b of document.querySelectorAll('.tabbar button')) {
+      const on = b.dataset.tab === t;
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
+    }
+    for (const p of document.querySelectorAll('.tab-panel')) p.classList.toggle('hidden', p.id !== 'tab-' + t);
+    if (scroll) window.scrollTo({ top: 0 });
+  }
+  function goCalc() { showTab('lab', false); $('calc').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  for (const b of document.querySelectorAll('.tabbar button')) b.addEventListener('click', () => showTab(b.dataset.tab));
+
+  // ---------- passo passo ----------
+  // Spiegazione di ogni fase, riconosciuta dal nome. Conta l'ordine: vince la prima che corrisponde.
+  const READY_DITO = 'Test del dito: premi con un dito infarinato. Se la fossetta risale piano e lascia un segno, è pronto. Se risale subito, aspetta ancora.';
+  const GUIDE = [
+    { re: /fuori.*frigo/i, text: 'Tira fuori dal frigo e lascia coperto a temperatura ambiente: l\'impasto si risveglia e torna morbido e facile da lavorare.', ready: READY_DITO },
+    { re: /chiusura/i, text: 'Spezzetta il prefermento nella ciotola con l\'acqua della chiusura e scioglilo bene. Aggiungi la farina a poco a poco, poi il sale quando l\'impasto ha già preso corpo, e per ultimi i grassi.',
+      ready: 'Pronto quando è liscio e, tirandone un pezzetto, si allunga in un velo sottile senza strapparsi.' },
+    { re: /autolisi/i, text: 'Mescola solo farina e acqua, giusto finché non vedi più farina asciutta. Copri e lascia riposare: il glutine comincia a formarsi da solo e dopo l\'impasto sarà più facile e più estensibile.' },
+    { re: /biga/i, text: 'Mescola farina, acqua e lievito per 2–3 minuti, appena: deve restare a grumi, non liscia. Copri e lascia possibilmente a 16–18 °C.',
+      ready: 'Pronta quando è gonfia, profuma di yogurt e, aprendola, dentro è piena di filamenti.' },
+    { re: /poolish/i, text: 'Sciogli il lievito nell\'acqua, aggiungi la farina e mescola con un cucchiaio fino a una pastella liscia. Copri.',
+      ready: 'Pronto quando la superficie è piena di bolle e al centro comincia appena ad abbassarsi.' },
+    { re: /appretto.*frigo/i, text: 'Copri bene e metti in frigo. Quando è ora, puoi infornare direttamente dal frigo: l\'impasto freddo si incide meglio e tiene la forma.', ready: READY_DITO },
+    { re: /frigo/i, text: 'Copri bene, perché il frigo secca la superficie, e metti in frigo. Qui il lievito lavora piano e l\'impasto prende sapore.' },
+    { re: /pieg/i, text: 'Copri e lascia lievitare. A ogni piega: bagna le mani, prendi un lembo d\'impasto da sotto, tiralo verso l\'alto senza strapparlo e ripiegalo sopra. Gira la ciotola e ripeti su tutti e quattro i lati. Così l\'impasto prende forza senza impastarlo di nuovo.',
+      ready: 'Alla fine deve essere cresciuto di circa metà, con bolle sui bordi e la superficie bombata.' },
+    { re: /puntata|riposo in ciotola|riposo a temperatura|in massa/i, text: 'Copri la ciotola e lascia lievitare in un posto tiepido e senza correnti d\'aria.',
+      ready: 'Deve crescere di circa metà: la superficie è bombata e sui bordi si vedono bolle.' },
+    { re: /staglio|panetti|dividi|divisione/i, text: 'Rovescia l\'impasto sul piano senza sgonfiarlo. Dividilo in pezzi, pesandoli, e chiudi ogni pezzo a pallina tesa: porta i bordi sotto e falla ruotare sul piano finché la superficie è liscia. Mettile in un contenitore appena unto e chiuso, ben distanziate.' },
+    { re: /preforma/i, text: 'Dai a ogni pezzo una forma grossolana, a palla o a cilindro, senza stringere troppo.' },
+    { re: /^riposo$/i, text: 'Lascia riposare coperto: il glutine si rilassa e la formatura viene più facile.' },
+    { re: /taglio/i, text: 'Rovescia l\'impasto sul piano ben infarinato senza sgonfiarlo e taglialo a rettangoli con il tarocco. Non formarlo: le bolle sono il bello della ciabatta.' },
+    { re: /stesura/i, text: 'Ungi la teglia, rovescia l\'impasto e allargalo con i polpastrelli verso gli angoli, senza schiacciare. Se si ritira, aspetta 10 minuti e riprova.' },
+    { re: /buchi|salamoia/i, text: 'Ungi le dita e premi l\'impasto fino a toccare il fondo, facendo tante fossette. Versa sopra la salamoia: resterà nelle fossette.' },
+    { re: /formatura|forma/i, text: 'Infarina appena il piano. Sgonfia l\'impasto con delicatezza, piega i lati verso il centro e arrotola stringendo, così la superficie si tende. Chiudi bene la chiusura sotto.' },
+    { re: /appretto|lievitazione|riposo/i, text: 'Ultima lievitazione, coperto.', ready: READY_DITO },
+    { re: /impast/i, text: null, ready: 'Pronto quando è liscio e, tirandone un pezzetto, si allunga in un velo sottile senza strapparsi.' },
+  ];
+
+  function impastoText(r) {
+    const madre = r.ingredients.some(i => isMadre(i.name));
+    return (madre ? 'Sciogli il lievito madre in gran parte dell\'acqua.' : 'Sciogli il lievito in gran parte dell\'acqua.') +
+      ' Aggiungi la farina a poco a poco e impasta. Tieni da parte un po\' d\'acqua (5–10%) e aggiungila solo quando l\'impasto è già liscio. ' +
+      'Il sale va messo dopo qualche minuto, mai a contatto diretto con il lievito; olio, burro e grassi per ultimi.';
+  }
+
+  const isPizza = (r) => /pizza/i.test(r.name) && r.bake.support !== 'teglia';
+  const needsPreheat = (r) => ['pietra', 'acciaio', 'pentola', 'fornopizza'].includes(r.bake.support);
+
+  function buildSteps(r) {
+    const out = compute(r);
+    const steps = [];
+    const sp = out.rows ? splitPref(r, out) : null;
+    const tbl = (rows) => makeTable(rows, false);
+
+    // 0 · Preparazione: pesa tutto
+    const prep = [el('p', { textContent: 'Pesa tutto prima di cominciare. Le dosi sono quelle del Laboratorio.' })];
+    if (out.rows) prep.push(tbl(out.rows));
+    const goal = parseNum($('ddtGoal').value), room = parseNum($('ddtRoom').value), fl = parseNum($('ddtFlour').value), pre = parseNum($('ddtPre').value);
+    if ([goal, room, fl].every(isFinite) && out.rows?.some(x => isWater(x.name))) {
+      const w = isFinite(pre) ? goal * 4 - room - fl - pre - Number($('ddtMix').value) : goal * 3 - room - fl - Number($('ddtMix').value);
+      prep.push(el('p', { textContent: 'Acqua a circa ' + Math.round(Math.min(Math.max(w, 2), 38)) + ' °C, per un impasto a ' + fmtNum(goal) + ' °C (si regola nella tab Lievito).' }));
+    }
+    for (const row of out.rows || []) { const t = dilutionText(row); if (t) prep.push(el('p', { className: 'ready', textContent: t })); }
+    if (r.notes.procedimento) prep.push(el('p', { textContent: r.notes.procedimento, style: 'white-space:pre-wrap' }));
+    steps.push({ title: 'Prepara gli ingredienti', body: prep, phase: r.phases.length ? 0 : null });
+
+    // Le fasi della ricetta
+    let shownPre = false, shownMain = false, autolisiDone = false;
+    r.phases.forEach((p, k) => {
+      const g = GUIDE.find(x => x.re.test(p.name));
+      const body = [];
+      const isPre = /biga|poolish|prefermento|lievitino/i.test(p.name) && !/chiusura/i.test(p.name);
+      if (sp && isPre && !shownPre) { body.push(tbl(sp.pre)); shownPre = true; }
+      else if (out.rows && /autolisi/i.test(p.name) && !sp) {
+        const rows = out.rows.filter(x => isFlour(x.name) || isWater(x.name)).map(x => isWater(x.name) ? { name: x.name + ' (tutta tranne un po\')', g: x.g * 0.9 } : x);
+        body.push(tbl(rows)); autolisiDone = true;
+      } else if (out.rows && !shownMain && /impast|chiusura/i.test(p.name)) {
+        if (sp) body.push(el('p', { textContent: 'Aggiungi al prefermento:' }), tbl(sp.close));
+        else if (autolisiDone) body.push(el('p', { textContent: 'Aggiungi all\'autolisi:' }), tbl(out.rows.filter(x => !isFlour(x.name)).map(x => isWater(x.name) ? { name: x.name + ' rimasta', g: x.g * 0.1 } : x)));
+        else body.push(tbl(out.rows));
+        shownMain = true;
+      }
+      const text = g ? (g.text ?? impastoText(r)) : 'Segui le note della ricetta.';
+      body.unshift(el('p', { textContent: text }));
+      if (g?.ready) body.push(el('p', { className: 'ready', textContent: g.ready }));
+      if (k === r.phases.length - 1 && needsPreheat(r) && p.min >= 30)
+        body.push(el('p', { className: 'ready', textContent: '🔥 Accendi il forno ' + (p.min > 60 ? 'un\'ora prima della fine di questa fase' : 'adesso') + ': ' +
+          ({ pentola: 'la pentola deve', pietra: 'la pietra deve', acciaio: 'l\'acciaio deve', fornopizza: 'il forno per pizza deve' })[r.bake.support] + ' scaldarsi bene.' }));
+      steps.push({ title: p.name, dur: p.min, body, phase: k });
+    });
+
+    // Stesura della pizza, con il consiglio sull'aria che va nel cornicione
+    if (isPizza(r)) steps.push({ title: 'Stesura', body: [
+      el('p', { textContent: 'Con la spatola prendi il panetto e capovolgilo nella farina (o nella semola), poi infarina anche l\'altro lato.' }),
+      el('p', { textContent: 'Premi con i polpastrelli dal centro verso l\'esterno, lasciando 1–2 cm di bordo senza toccarlo: così l\'aria va nel cornicione e lo fa gonfiare. Allarga sul dorso delle mani o a schiaffo, mai col mattarello, che sgonfia tutto.' }),
+      el('p', { className: 'ready', textContent: 'Condisci in fretta: più resta sulla pala, più si attacca.' })], phase: r.bake.min ? r.phases.length : null });
+
+    // Cottura
+    const bt = [bakeText(r.bake), r.notes.forno].filter(Boolean).join('. ');
+    if (bt) {
+      const tips = bakeTips(r.bake);
+      steps.push({ title: 'Cottura', dur: r.bake.min, phase: r.bake.min ? r.phases.length : null,
+        body: [el('p', { textContent: bt + '.' }), ...(tips.length ? [el('ul', { className: 'tips' }, ...tips.map(t => el('li', { textContent: t })))] : [])] });
+    }
+
+    // Fine
+    const diaryBtn = el('button', { textContent: '📓 Segna com\'è andata nel Diario' });
+    diaryBtn.addEventListener('click', () => showTab('diario'));
+    steps.push({ title: 'Fatto!', body: [
+      el('p', { textContent: isPizza(r) ? 'Servila subito. Ottimo lavoro, Heisenbread.' : 'Lascia raffreddare su una griglia: la mollica finisce di cuocere mentre si raffredda. Aspetta almeno un\'ora prima di tagliare.' }),
+      el('p', { textContent: 'Io sono quello che impasta.', style: 'font-style:italic' }),
+      el('div', { className: 'actions' }, diaryBtn)] });
+    return steps;
+  }
+
+  let stepList = [];
+  function renderSteps() {
+    const r = current();
+    if (state.stepRecipe !== r.id) { state.step = 0; state.stepRecipe = r.id; }
+    stepList = buildSteps(r);
+    const i = Math.min(Math.max(Number(state.step) || 0, 0), stepList.length - 1);
+    state.step = i;
+    const s = stepList[i];
+    $('stepCount').textContent = 'Passo ' + (i + 1) + ' di ' + stepList.length;
+    $('stepProgress').style.width = Math.round((i + 1) / stepList.length * 100) + '%';
+    $('stepTitle').textContent = s.title;
+    $('stepDur').textContent = s.dur ? 'Durata: ' + fmtDur(s.dur) : '';
+    $('stepDur').classList.toggle('hidden', !s.dur);
+    $('stepBody').replaceChildren(...s.body);
+    $('stepPrev').disabled = i === 0;
+    $('stepNext').disabled = i === stepList.length - 1;
+    $('stepTimer').classList.toggle('hidden', s.phase === null || s.phase === undefined);
+    $('stepTimer').textContent = i === 0 ? '⏱ Comincio adesso: avvia il timer' : '⏱ Avvia il timer da questo passo';
+  }
+  function goStep(d) {
+    state.step = (Number(state.step) || 0) + d; saveState(); renderSteps();
+    $('stepCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('stepPrev').addEventListener('click', () => goStep(-1));
+  $('stepNext').addEventListener('click', () => goStep(1));
+  $('stepTimer').addEventListener('click', () => {
+    const r = current(), s = stepList[state.step];
+    if (!s || s.phase === null || s.phase === undefined) return;
+    const rest = { ...r, phases: r.phases.slice(s.phase) };
+    startPlan({ recipe: r.name, ...schedule(rest, 'start', Date.now()) });
+  });
+
+  // ---------- salva e ripristina ----------
+  const BACKUP_KEYS = [LS_RECIPES, LS_STATE, LS_SHEET, LS_PLAN, LS_DIARY, LS_YEAST, LS_MADRE];
+  $('backupSave').addEventListener('click', () => {
+    const data = {};
+    for (const k of BACKUP_KEYS) { const v = store.get(k, null); if (v !== null) data[k] = v; }
+    if (!data[LS_RECIPES]) data[LS_RECIPES] = recipes;
+    const file = { app: 'baking-bread', v: 1, saved: new Date().toISOString(), data };
+    const name = 'baking-bread-dati-' + today() + '.json';
+    const a = el('a', { href: URL.createObjectURL(new Blob([JSON.stringify(file, null, 1)], { type: 'application/json' })), download: name });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    $('backupMsg').textContent = 'Salvato: "' + name + '", lo trovi nei Download. Tienilo da parte, magari mandandotelo per mail o su Drive.';
+  });
+  $('backupLoad').addEventListener('click', () => $('backupFile').click());
+  $('backupFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const file = JSON.parse(await f.text());
+      if (file?.app !== 'baking-bread' || !Array.isArray(file.data?.[LS_RECIPES])) throw 0;
+      const when = file.saved ? new Date(file.saved).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : 'una data sconosciuta';
+      if (!confirm('Sostituire ricette, diario e lievito madre di questo telefono con quelli salvati il ' + when + '?')) return;
+      for (const k of BACKUP_KEYS) if (k in file.data) store.set(k, file.data[k]);
+      location.reload();
+    } catch {
+      $('backupMsg').textContent = 'Questo file non sembra un salvataggio di Baking Bread.';
+    }
+  });
+
   $('quote').textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 
   if (!yRows) yRows = yRowsFromRecipe();
   renderYeastRows();
+  showTab(state.tab, false);
   renderAll();
   renderMadre();
   setInterval(renderMadreStatus, 60000);

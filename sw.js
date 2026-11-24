@@ -1,7 +1,7 @@
 // Service worker: tiene una copia dell'app sul telefono così funziona anche senza rete.
 // Strategia "prima la rete": se sei online prendi sempre l'ultima versione (e la copia si aggiorna),
 // se sei offline usi la copia salvata.
-const CACHE = 'impasti-v4';
+const CACHE = 'impasti-v5';
 const FILES = ['./', './index.html', './manifest.webmanifest',
                './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
