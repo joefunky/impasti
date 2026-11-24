@@ -143,6 +143,7 @@
   .list-item > div { flex: 1; min-width: 0; }
   .list-item p { margin: 2px 0; font-size: .9rem; }
   .list-item .sub { margin: 0; }
+  a { color: var(--accent); }
   .result-big { font-size: 1.1rem; margin: 6px 0; }
   .result-big b { font-size: 1.5rem; }
 </style>
@@ -369,6 +370,110 @@
         <p class="note">Il timer suona solo con l'app aperta. Per promemoria sicuri, anche a telefono spento, tocca 📅 accanto a ogni fase (Google Calendar) o scarica il file per il calendario.</p>
       </div>
       <p class="note hidden" id="planEmpty">Questa ricetta non ha ancora le fasi. Aggiungile da <em>Modifica ricetta → Fasi della lavorazione</em>.</p>
+    </details>
+  </section>
+
+  <!-- Quanto lievito -->
+  <section class="card">
+    <details id="yeastBox">
+      <summary>Quanto lievito?</summary>
+      <p class="sub" style="margin-bottom:10px">Il lievito è chimica: dimmi quante ore e a che temperatura, ti dico la dose. Vale per il lievito di birra.</p>
+      <div class="row field">
+        <div>
+          <label for="yRoom">Stanza (°C)</label>
+          <input id="yRoom" type="number" inputmode="decimal" step="any" value="22">
+        </div>
+        <div>
+          <label for="yFridge">Frigo (°C)</label>
+          <input id="yFridge" type="number" inputmode="decimal" step="any" value="5">
+        </div>
+      </div>
+      <div class="ph-head" aria-hidden="true"><span>Dove</span><span class="u">Ore</span><span class="x"></span></div>
+      <div id="yRows"></div>
+      <div class="actions" style="margin-top:0">
+        <button id="yAdd">+ Riga</button>
+        <button id="yFromRecipe">Usa le fasi della ricetta</button>
+      </div>
+      <div id="yOut" style="margin-top:10px"></div>
+      <div class="actions hidden" id="yApplyWrap">
+        <button id="yApply" class="primary">Metti nella ricetta</button>
+      </div>
+      <p class="note" id="yMsg"></p>
+      <p class="note">Stima indicativa: farina, lievito e frigo cambiano un po' i tempi. Usa il test del dito e segna nel diario com'è andata, poi correggi.</p>
+    </details>
+  </section>
+
+  <!-- Lievito madre -->
+  <section class="card">
+    <details id="madreBox">
+      <summary>Il lievito madre (il tuo socio)</summary>
+      <p class="sub" style="margin-bottom:10px">Jesse va nutrito con regolarità.</p>
+      <p class="result-big" id="mStatusLine"></p>
+      <div class="row field">
+        <div>
+          <label for="mStatus">Stato</label>
+          <select id="mStatus">
+            <option value="attivo">Attivo: pronto a cucinare</option>
+            <option value="frigo">In frigo: latitante</option>
+          </select>
+        </div>
+        <div>
+          <label for="mEvery">Rinfresca ogni</label>
+          <select id="mEvery">
+            <option value="1">giorno</option>
+            <option value="2">2 giorni</option>
+            <option value="3">3 giorni</option>
+            <option value="7">settimana</option>
+            <option value="14">2 settimane</option>
+          </select>
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <label for="mLast">Ultimo rinfresco</label>
+          <input id="mLast" type="datetime-local">
+        </div>
+        <div style="flex:0 0 auto">
+          <button id="mNow" class="primary">Rinfrescato adesso</button>
+        </div>
+      </div>
+      <p class="note" style="margin-top:0"><a id="mCal" target="_blank" rel="noopener">📅 Metti il promemoria ricorrente in Google Calendar</a></p>
+
+      <h3>Rinfresco</h3>
+      <div class="row field">
+        <div>
+          <label for="mNeed">Mi servono (g)</label>
+          <input id="mNeed" type="number" inputmode="decimal" min="0" step="any">
+        </div>
+        <div>
+          <label for="mKeep">Più da tenere (g)</label>
+          <input id="mKeep" type="number" inputmode="decimal" min="0" step="any">
+        </div>
+      </div>
+      <div class="row field">
+        <div>
+          <label for="mRatio">Proporzione</label>
+          <select id="mRatio">
+            <option value="1">1 : 1 (pronto in 4–6 h)</option>
+            <option value="2">1 : 2 (6–8 h)</option>
+            <option value="3">1 : 3 (8–10 h)</option>
+            <option value="5">1 : 5 (10–12 h)</option>
+          </select>
+        </div>
+        <div>
+          <label for="mHyd">Idratazione (%)</label>
+          <input id="mHyd" type="number" inputmode="decimal" min="0" step="any">
+        </div>
+      </div>
+      <div class="field">
+        <label for="mWhen">Mi serve pronto per</label>
+        <input id="mWhen" type="datetime-local">
+      </div>
+      <div class="actions" style="margin-top:0">
+        <button id="mFromRecipe">Usa la dose della ricetta</button>
+      </div>
+      <div id="mOut" style="margin-top:8px"></div>
+      <p class="note">Tempi indicativi a circa 24 °C: se fa più freddo ci mette di più. È pronto quando è raddoppiato e ha la cupola, prima che ricada.</p>
     </details>
   </section>
 
@@ -906,6 +1011,7 @@
     $('info').textContent = '';
     err.classList.toggle('hidden', !out.error);
     renderNotes(r);
+    if (yRows) renderYeast(); // i grammi suggeriti seguono la quantità di farina
     if (out.error) { err.textContent = out.error; return; }
 
     tables.append(makeTable(out.rows, true));
@@ -926,6 +1032,19 @@
     if (state.base === 'pieces') info.push(state.pieces + ' pezzi da ' + fmtNum(state.pieceWeight) + ' g');
     if ((state.base === 'pieces' || state.base === 'total') && state.margin > 0) info.push('scarto +' + fmtPct(state.margin) + '% incluso');
     $('info').textContent = info.join(' · ');
+
+    // Lievito troppo poco per una bilancia da cucina (precisione 1 g): si scioglie in acqua e se ne pesa una parte.
+    for (const row of out.rows) {
+      if (!isYeast(row.name) || !(row.g >= 0.02) || row.g >= 3) continue;
+      const d = row.g >= 0.5 ? 10 : row.g >= 0.1 ? 50 : 200;
+      const y = d === 10 ? 5 : 1;
+      const sol = row.g * d;
+      warn.append(el('p', { className: 'note' },
+        el('strong', { textContent: 'Troppo poco da pesare? ' }),
+        fmtNum(roundG(row.g)) + ' g di ' + row.name.toLowerCase() + ' sono difficili da pesare con una bilancia da cucina. ' +
+        'Fai come in laboratorio: sciogli ' + y + ' g di lievito in ' + (y * d - y) + ' g d\'acqua, mescola bene e usane ' + fmtNum(Math.round(sol)) + ' g. ' +
+        'Togli ' + fmtNum(Math.round(sol - row.g)) + ' g dall\'acqua della ricetta.'));
+    }
 
     const sp = splitPref(r, out);
     if (sp) {
@@ -1499,6 +1618,160 @@
   });
   setInterval(tick, 1000);
 
+  // ---------- quanto lievito ----------
+  // Ogni fase vale "ore equivalenti a 22 °C": l'attività del lievito cambia di circa 2,5 volte ogni 10 °C.
+  // Dose di lievito fresco = 9,15 × ore equivalenti^-1,5 (taratura: 12 h a 22 °C ≈ 0,22% di fresco).
+  const yRate = (t) => Math.pow(2.5, (Math.min(Math.max(t, 1), 32) - 22) / 10);
+  const yFresh = (heq) => 9.15 * Math.pow(heq, -1.5);
+  const LS_YEAST = 'impasti.lievito.v1';
+  let yRows = store.get(LS_YEAST, null);
+  if (!Array.isArray(yRows)) yRows = null;
+
+  function yRowsFromRecipe() {
+    const r = current();
+    const rows = r.phases.map(p => ({ where: /frigo/i.test(p.name) && !/fuori/i.test(p.name) ? 'frigo' : 'stanza', h: Math.round(p.min / 6) / 10 }));
+    // Fasi consecutive nello stesso posto diventano una riga sola.
+    const merged = [];
+    for (const x of rows) { const last = merged[merged.length - 1]; if (last && last.where === x.where) last.h = Math.round((last.h + x.h) * 10) / 10; else merged.push({ ...x }); }
+    return merged.length ? merged : [{ where: 'stanza', h: 12 }];
+  }
+
+  function renderYeastRows() {
+    $('yRows').replaceChildren(...yRows.map((row, i) => {
+      const sel = el('select', { className: 'name' }, new Option('A temperatura ambiente', 'stanza'), new Option('In frigo', 'frigo'));
+      sel.value = row.where;
+      sel.setAttribute('aria-label', 'Dove');
+      const h = el('input', { className: 'h', inputMode: 'decimal', value: String(row.h).replace('.', ',') });
+      h.setAttribute('aria-label', 'Ore');
+      const x = el('button', { className: 'icon', textContent: '×', title: 'Togli' });
+      x.setAttribute('aria-label', 'Togli riga');
+      sel.addEventListener('change', () => { row.where = sel.value; renderYeast(); });
+      h.addEventListener('input', () => { row.h = parseNum(h.value) || 0; renderYeast(); });
+      x.addEventListener('click', () => { yRows.splice(i, 1); renderYeastRows(); renderYeast(); });
+      return el('div', { className: 'ph-row' }, sel, h, x);
+    }));
+  }
+
+  let yLast = null;
+  function renderYeast() {
+    store.set(LS_YEAST, yRows);
+    const room = parseNum($('yRoom').value), fridge = parseNum($('yFridge').value);
+    const out = $('yOut');
+    yLast = null;
+    $('yApplyWrap').classList.add('hidden');
+    if (!isFinite(room) || !isFinite(fridge)) { out.replaceChildren(); return; }
+    const hours = yRows.reduce((s, x) => s + (x.h > 0 ? x.h : 0), 0);
+    const heq = yRows.reduce((s, x) => s + (x.h > 0 ? x.h * yRate(x.where === 'frigo' ? fridge : room) : 0), 0);
+    if (!(heq > 0.5)) { out.replaceChildren(el('p', { className: 'note', textContent: 'Inserisci le ore di lievitazione.' })); return; }
+    const fresh = yFresh(heq), dry = fresh / 3;
+    yLast = { fresh, dry };
+    const r = current(), res = compute(r);
+    const lines = [
+      el('p', { className: 'result-big' }, 'Fresco ', el('b', { textContent: fmtPct(Math.round(fresh * 100) / 100) + '%' }), ' · secco ', el('b', { textContent: fmtPct(Math.round(dry * 1000) / 1000) + '%' })),
+      el('p', { className: 'note', style: 'margin-top:0', textContent: 'sul peso della farina, per ' + fmtNum(Math.round(hours * 10) / 10) + ' ore in tutto' }),
+    ];
+    if (res.rows && res.flour > 0) lines.push(el('p', { textContent: 'Con i ' + fmtNum(roundG(res.flour)) + ' g di farina di "' + r.name + '": ' + fmtNum(Math.round(res.flour * fresh) / 100) + ' g di fresco, o ' + fmtNum(Math.round(res.flour * dry) / 100) + ' g di secco.' }));
+    if (fresh > 4) lines.push(el('p', { className: 'warn', textContent: 'Tempi così brevi chiedono tanto lievito: il sapore ne risente. Se puoi, allunga la lievitazione.' }));
+    out.replaceChildren(...lines);
+    $('yApplyWrap').classList.toggle('hidden', !r.ingredients.some(i => isYeast(i.name)));
+  }
+
+  $('yAdd').addEventListener('click', () => { yRows.push({ where: 'stanza', h: 2 }); renderYeastRows(); renderYeast(); });
+  $('yFromRecipe').addEventListener('click', () => { yRows = yRowsFromRecipe(); renderYeastRows(); renderYeast(); $('yMsg').textContent = ''; });
+  for (const id of ['yRoom', 'yFridge']) $(id).addEventListener('input', renderYeast);
+  $('yApply').addEventListener('click', () => {
+    const r = current();
+    const idx = r.ingredients.findIndex(i => isYeast(i.name));
+    const flourQty = r.ingredients.filter(i => isFlour(i.name)).reduce((s, i) => s + i.qty, 0);
+    if (idx < 0 || !yLast || !(flourQty > 0)) return;
+    const dry = /secco|istantaneo|disidratato/i.test(r.ingredients[idx].name);
+    const pct = dry ? yLast.dry : yLast.fresh;
+    r.ingredients[idx].qty = Math.round(pct * flourQty / 100 * 10000) / 10000;
+    saveRecipes(); renderAll();
+    $('yMsg').textContent = 'Fatto: in "' + r.name + '" ' + r.ingredients[idx].name + ' ora vale ' + fmtPct(Math.round(pct * 1000) / 1000) + '%.';
+  });
+
+  // ---------- lievito madre ----------
+  const LS_MADRE = 'impasti.madre.v1';
+  let madre = Object.assign({ status: 'attivo', every: 1, last: null, need: null, keep: 50, ratio: 1, hyd: null, when: null }, store.get(LS_MADRE, {}));
+  const saveMadre = () => store.set(LS_MADRE, madre);
+  const READY_H = { 1: 5, 2: 7, 3: 9, 5: 11 }; // ore medie al picco, a circa 24 °C
+
+  function recipeMadre() {
+    const r = current(), res = compute(r);
+    const i = res.rows ? res.rows.findIndex(x => isMadre(x.name)) : -1;
+    return i < 0 ? null : { g: Math.round(res.rows[i].g), hyd: r.madreHyd };
+  }
+
+  function renderMadre() {
+    $('mStatus').value = madre.status;
+    $('mEvery').value = String(madre.every);
+    if (madre.last) $('mLast').value = toLocalInput(madre.last);
+    const rm = recipeMadre();
+    if (madre.need === null && rm) madre.need = rm.g;
+    if (madre.hyd === null) madre.hyd = rm ? rm.hyd : 50;
+    $('mNeed').value = madre.need ?? '';
+    $('mKeep').value = madre.keep ?? '';
+    $('mRatio').value = String(madre.ratio);
+    $('mHyd').value = madre.hyd;
+    if (madre.when) $('mWhen').value = toLocalInput(madre.when);
+    renderMadreStatus(); renderFeed();
+  }
+
+  function renderMadreStatus() {
+    const line = $('mStatusLine');
+    const cal = $('mCal');
+    const start = madre.last ? madre.last + madre.every * 86400000 : ceil15(Date.now() + 3600000);
+    const p = new URLSearchParams({ action: 'TEMPLATE', text: 'Baking Bread · Rinfresca il lievito madre', dates: icsDate(start) + '/' + icsDate(start + 900000),
+                                    recur: 'RRULE:FREQ=DAILY;INTERVAL=' + madre.every, details: 'Jesse ha fame.' });
+    cal.href = 'https://calendar.google.com/calendar/render?' + p.toString();
+    if (!madre.last) { line.textContent = 'Segna l\'ultimo rinfresco per sapere quando tocca.'; return; }
+    const next = madre.last + madre.every * 86400000, diff = next - Date.now();
+    const h = Math.round(Math.abs(diff) / 3600000);
+    const span = h >= 48 ? Math.round(h / 24) + ' giorni' : h === 1 ? '1 ora' : h + ' ore';
+    if (diff < 0) line.replaceChildren(el('b', { textContent: 'Jesse ha fame: ' }), 'rinfresco in ritardo di ' + span + '.');
+    else line.replaceChildren('Prossimo rinfresco: ', el('b', { textContent: fmtWhen(next) }), diff < 3600000 ? ' (tra poco)' : ' (tra ' + span + ')');
+  }
+
+  function renderFeed() {
+    const out = $('mOut');
+    const need = parseNum($('mNeed').value), keep = parseNum($('mKeep').value) || 0;
+    const ratio = Number($('mRatio').value), h = (parseNum($('mHyd').value) || 0) / 100;
+    if (!(need > 0)) { out.replaceChildren(el('p', { className: 'note', textContent: 'Scrivi quanti grammi di lievito madre ti servono.' })); return; }
+    const total = need + keep;
+    const m = total / (1 + ratio * (1 + h)), f = m * ratio, w = f * h;
+    const t = [['Lievito madre', m], ['Farina', f], ['Acqua', w]];
+    const tbl = makeTable(t.map(([name, g]) => ({ name, g })), false);
+    const parts = [tbl];
+    const when = fromLocalInput($('mWhen').value);
+    if (isFinite(when)) {
+      const at = when - READY_H[ratio] * 3600000;
+      parts.push(el('p', { className: 'result-big' }, 'Rinfresca ', el('b', { textContent: fmtWhen(at) }), at < Date.now() ? ' — è già passato: usa una proporzione più bassa o un posto più caldo.' : ''));
+    }
+    out.replaceChildren(...parts);
+  }
+
+  $('mStatus').addEventListener('change', e => {
+    madre.status = e.target.value;
+    madre.every = madre.status === 'frigo' ? 7 : 1; // in frigo basta una volta a settimana
+    saveMadre(); renderMadre();
+  });
+  $('mEvery').addEventListener('change', e => { madre.every = Number(e.target.value); saveMadre(); renderMadreStatus(); });
+  $('mLast').addEventListener('input', e => { const t = fromLocalInput(e.target.value); madre.last = isFinite(t) ? t : null; saveMadre(); renderMadreStatus(); });
+  $('mNow').addEventListener('click', () => { madre.last = Date.now(); saveMadre(); renderMadre(); });
+  for (const [id, key] of [['mNeed', 'need'], ['mKeep', 'keep'], ['mHyd', 'hyd']])
+    $(id).addEventListener('input', e => { const n = parseNum(e.target.value); madre[key] = isFinite(n) ? n : null; saveMadre(); renderFeed(); });
+  $('mRatio').addEventListener('change', e => { madre.ratio = Number(e.target.value); saveMadre(); renderFeed(); });
+  $('mWhen').addEventListener('input', e => { const t = fromLocalInput(e.target.value); madre.when = isFinite(t) ? t : null; saveMadre(); renderFeed(); });
+  $('mFromRecipe').addEventListener('click', () => {
+    const rm = recipeMadre();
+    if (!rm) { $('mOut').replaceChildren(el('p', { className: 'note', textContent: 'La ricetta scelta sopra non usa lievito madre.' })); return; }
+    madre.need = rm.g; madre.hyd = rm.hyd;
+    // Se la ricetta è pianificata, il lievito madre serve per l'inizio dell'impasto.
+    if (planCache && planCache.steps.length) madre.when = planCache.steps[0].at;
+    saveMadre(); renderMadre();
+  });
+
   // ---------- ricettario ----------
   function renderBook() {
     $('bookList').replaceChildren(...BOOK.map(b => {
@@ -1601,7 +1874,11 @@
 
   $('quote').textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 
+  if (!yRows) yRows = yRowsFromRecipe();
+  renderYeastRows();
   renderAll();
+  renderMadre();
+  setInterval(renderMadreStatus, 60000);
   renderConv();
   renderBook();
   renderFlours();
