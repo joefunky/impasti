@@ -756,7 +756,7 @@
       </div>
       <div class="field">
         <label for="diaryNote">Note</label>
-        <textarea id="diaryNote" rows="3" placeholder="es. alveolatura bella, la prossima volta 5 minuti in più di forno"></textarea>
+        <textarea id="diaryNote" rows="3" placeholder="es. stanza 22 °C, acqua 18 °C, impastatrice a spirale. Alveolatura bella, la prossima volta 5 minuti in più di forno"></textarea>
       </div>
       <div class="actions" style="margin-top:0">
         <button id="diaryAdd" class="primary">Salva l'infornata</button>
@@ -892,6 +892,7 @@
     ['Mollica gommosa o umida', 'Di solito è poca cottura, o il pane tagliato caldo. Cuoci fino a 96–98 °C al cuore e aspetta almeno un\'ora prima di tagliare.'],
     ['Crosta pallida', 'Forno poco caldo o impasto troppo lievitato, che ha consumato gli zuccheri. Scalda il forno più a lungo, accorcia la lievitazione o aggiungi l\'1% di malto.'],
     ['Pizza gommosa nel forno di casa', 'Il forno di casa è freddo per la pizza: massima temperatura, pietra o acciaio sul ripiano più alto, scaldati almeno 45 minuti, e grill nell\'ultimo minuto.'],
+    ['L\'altra volta era perfetto, oggi no', 'Un impasto riuscito non vuol dire che il prossimo verrà uguale. Cambiano la temperatura dell\'acqua e della farina, la farina stessa, i semi (bevono acqua), la lievitazione in frigo o fuori, l\'impastatrice (alcune scaldano di più) e quanti kg impasti: più impasto c\'è, più tiene il caldo e più lievita in fretta. Segna tutto nel Diario e riparti dai numeri con Temperatura dell\'acqua e Quanto lievito. Ogni lotto ha la sua chimica.'],
     ['Il lievito madre sa troppo di acido', 'Rinfrescalo più spesso e usalo al picco, quando è raddoppiato. Tenuto più duro (meno acqua) e più al caldo diventa più dolce.'],
   ];
 
@@ -2124,10 +2125,13 @@
       steps.push({ title: p.name, dur: p.min, body, phase: k });
     });
 
-    // Stesura della pizza, con il consiglio sull'aria che va nel cornicione
+    // Stesura della pizza, con i consigli di un pizzaiolo
     if (isPizza(r)) steps.push({ title: 'Stesura', body: [
-      el('p', { textContent: 'Con la spatola prendi il panetto e capovolgilo nella farina (o nella semola), poi infarina anche l\'altro lato.' }),
+      el('p', { textContent: 'Spolvera il banco con semola rimacinata, come fanno i pizzaioli.' }),
+      el('p', { textContent: 'Appoggia il panetto con la chiusura verso il basso e la parte liscia verso l\'alto, verso di te.' }),
       el('p', { textContent: 'Premi con i polpastrelli dal centro verso l\'esterno, lasciando 1–2 cm di bordo senza toccarlo: così l\'aria va nel cornicione e lo fa gonfiare. Allarga sul dorso delle mani o a schiaffo, mai col mattarello, che sgonfia tutto.' }),
+      el('p', { textContent: 'Tocca l\'impasto il meno possibile, ma con decisione. Prima di metterlo sulla pala sgrulla la farina in eccesso.' }),
+      el('p', { className: 'ready', textContent: '🍕 Il consiglio di Simone, pizzaiolo: chiusura sotto, mani decise, poca farina. Niente mezze misure.' }),
       el('p', { className: 'ready', textContent: 'Condisci in fretta: più resta sulla pala, più si attacca.' })], phase: r.bake.min ? r.phases.length : null });
 
     // Cottura
